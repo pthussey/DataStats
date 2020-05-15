@@ -35,18 +35,18 @@ def FitLine(xs, inter, slope):
 
 
 def NormalCdfValues(mean, std, n=1001):
-    """Generates x and y values to plot a normal distribution cdf model.
+    """Generates sequences of xs and ps to plot a normal distribution cdf model.
 
     Arguments:
-        mean {float} -- mean value
+        mean {float} -- mean
         std {float} -- standard deviation
 
     Keyword Arguments:
-        n {int} -- number of x values to use (default: {1001})
+        n {int} -- The number of x values to use (default: {1001})
 
     Returns:
-        xs {array} -- values to use for x in a cdf model plot
-        ps {array} -- values to use for y in a cdf model plot
+        xs {array} -- The values to use for x in a cdf model plot
+        ps {array} -- The values to use for y in a cdf model plot
        
     """
     xmin = mean - 4 * std
@@ -61,7 +61,7 @@ def NormalProbabilityValues(a):
     """Creates x and y values to be used in a normal probability plot.
 
     Arguments:
-        a {array-like} -- a single input data set
+        a {array-like} -- A single input data set
 
     Returns:
         sorted_norm {list} -- Sorted random data from the standard normal distribution,
@@ -92,6 +92,26 @@ def ParetoCdfValues(xmin, xmax, b, n=50):
     """
     xs = np.linspace(xmin, xmax, n)
     ps = stats.pareto.cdf(xs, scale=xmin, b=b)
+    return xs, ps
+
+
+def ExponentialCdfValues(xmin, xmax, lam, n=50):
+    """Generates sequences of xs and ps to plot an exponential CDF model.
+
+    Arguments:
+        xmin {float} -- The minimum possible value for x
+        xmax {float} -- The maximum value for x
+        lam {float} -- The shape parameter, lambda
+
+    Keyword Arguments:
+        n {int} -- The number of x values to use (default: {50})
+
+    Returns:
+        xs {array} -- The values to use for x in a cdf model plot
+        ps {array} -- The values to use for y in a cdf model plot
+    """
+    xs = np.linspace(xmin, xmax, n)
+    ps = stats.expon.cdf(xs, scale=1/lam)
     return xs, ps
 
 
