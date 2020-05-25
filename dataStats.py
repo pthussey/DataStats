@@ -57,6 +57,27 @@ def NormalCdfValues(mean, std, n=1001):
     return xs, ps
 
 
+def NormalPdfValues(mean, std, n=1001):
+    """Generates sequences of xs and ps to plot a normal distribution pdf model.
+
+    Arguments:
+        mean {float} -- mean
+        std {float} -- standard deviation
+
+    Keyword Arguments:
+        n {int} -- The number of x values to use (default: {1001})
+
+    Returns:
+        xs {array} -- The values to use for x in a pdf model plot
+        ps {array} -- The values to use for y in a pdf model plot
+    """
+    xmin = mean - 4 * std
+    xmax = mean + 4 * std
+    xs = np.linspace(xmin, xmax, n)
+    ps = stats.norm.pdf(xs, loc=mean, scale=std)
+    return xs, ps
+
+
 def NormalProbabilityValues(a):
     """Creates x and y values to be used in a normal probability plot.
 
@@ -76,7 +97,7 @@ def NormalProbabilityValues(a):
 
 
 def ParetoCdfValues(xmin, xmax, b, n=50):
-    """Generates sequences of xs and ps to plot a Pareto CDF model.
+    """Generates sequences of xs and ps to plot a Pareto cdf model.
 
     Arguments:
         xmin {float} -- The minimum possible value for x
@@ -95,8 +116,28 @@ def ParetoCdfValues(xmin, xmax, b, n=50):
     return xs, ps
 
 
+def ParetoPdfValues(xmin, xmax, b, n=50):
+    """Generates sequences of xs and ps to plot a Pareto pdf model.
+
+    Arguments:
+        xmin {float} -- The minimum possible value for x
+        xmax {float} -- The maximum value for x
+        b {float} -- The shape parameter, also referred to as alpha
+
+    Keyword Arguments:
+        n {int} -- The number of x values to use (default: {50})
+
+    Returns:
+        xs {array} -- The values to use for x in a pdf model plot
+        ps {array} -- The values to use for y in a pdf model plot
+    """
+    xs = np.linspace(xmin, xmax, n)
+    ps = stats.pareto.pdf(xs, scale=xmin, b=b)
+    return xs, ps
+
+
 def ExponentialCdfValues(xmin, xmax, lam, n=50):
-    """Generates sequences of xs and ps to plot an exponential CDF model.
+    """Generates sequences of xs and ps to plot an exponential cdf model.
 
     Arguments:
         xmin {float} -- The minimum possible value for x
@@ -112,6 +153,26 @@ def ExponentialCdfValues(xmin, xmax, lam, n=50):
     """
     xs = np.linspace(xmin, xmax, n)
     ps = stats.expon.cdf(xs, scale=1/lam)
+    return xs, ps
+
+
+def ExponentialPdfValues(xmin, xmax, lam, n=50):
+    """Generates sequences of xs and ps to plot an exponential pdf model.
+
+    Arguments:
+        xmin {float} -- The minimum possible value for x
+        xmax {float} -- The maximum value for x
+        lam {float} -- The shape parameter, lambda
+
+    Keyword Arguments:
+        n {int} -- The number of x values to use (default: {50})
+
+    Returns:
+        xs {array} -- The values to use for x in a pdf model plot
+        ps {array} -- The values to use for y in a pdf model plot
+    """
+    xs = np.linspace(xmin, xmax, n)
+    ps = stats.expon.pdf(xs, scale=1/lam)
     return xs, ps
 
 
@@ -257,6 +318,26 @@ def EvalCdf(values, x):
 
     prob = count / len(values)
     return prob
+
+
+def KdeValues(sample, n=101):
+    """Generates sequences of x and y values for a kernel density estimation (kde) plot.
+
+    Arguments:
+        sample {array-like} -- A single input data set
+
+    Keyword Arguments:
+        n {int} -- The number of x values to use (default: {101})
+
+    Returns:
+        xs {array} -- The values to use for x in a kde plot
+        ys {array} -- The values to use for y in a kde plot
+    """
+    xs = np.linspace(min(sample), max(sample), n)
+    sorted_sample = sorted(sample)
+    kde = stats.gaussian_kde(sorted_sample)
+    ys = kde.evaluate(xs)
+    return xs,ys
 
 
 def main():
