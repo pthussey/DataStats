@@ -340,6 +340,62 @@ def KdeValues(sample, n=101):
     return xs,ys
 
 
+def SampleRows(df, nrows, replace=False):
+    """Generates a random sample of rows from a dataframe.
+
+    Arguments:
+        df {dataframe} -- The input dataframe
+        nrows {integer} -- The number of rows to sample
+
+    Keyword Arguments:
+        replace {bool} -- [Select whether or not to use replacement in sampling] (default: {False})
+
+    Returns:
+        sample {dataframe} -- The sample dataframe
+    """
+    indices = np.random.choice(df.index, nrows, replace=replace)
+    sample = df.loc[indices]
+    return sample
+
+
+def Jitter(values, jitter=0.5):
+    """Adds jitter to a scatter plot to remove 'column' effects of rounding for better visualization.
+
+    Args:
+        values (array-like): The sequence of values to which jitter will be added.
+        jitter (float): The max amount of jitter to add. Defaults to 0.5.
+
+    Returns:
+        numpy array: The array of values with jitter added.
+    """
+    n = len(values)
+    return np.random.normal(0, jitter, n) + values
+
+
+def ConfidenceInterval(a, conf_level):
+    """
+    Calculate the confidence interval for the data distribution under the assumptions that it can be calculated using 
+    a student-t distribution.
+    
+    Args:
+        a {array-like} -- A single input data set
+        conf_level {float} -- The confidence level to use. Must be a value between 0 and 1.
+    
+    Returns:
+        start: Starting value of the interval
+        end: Ending value of the interval
+    """
+
+    mean = np.mean(a)
+
+    conf_int = stats.sem(a) * stats.t.ppf((1 + conf_level) / 2, len(a) - 1)
+
+    start = mean - conf_int
+    end = mean + conf_int
+
+    return start, end 
+
+
 def main():
     pass
 
