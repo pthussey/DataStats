@@ -363,7 +363,7 @@ def Jitter(values, jitter=0.5):
 
     Args:
         values (array-like): The sequence of values to which jitter will be added.
-        jitter (float): The max amount of jitter to add. Defaults to 0.5.
+        jitter (float): The max amount of jitter to add. (default: 0.5)
 
     Returns:
         numpy array: The array of values with jitter added.
@@ -372,16 +372,17 @@ def Jitter(values, jitter=0.5):
     return np.random.normal(0, jitter, n) + values
 
 
-def ConfidenceInterval(a, conf_level):
+def ConfidenceInterval(a, conf_level=0.95):
     """
-    Calculate the confidence interval for the data distribution under the assumptions that it can be calculated using 
-    a student-t distribution.
+    Calculate the confidence interval for the mean of a data distribution under the assumptions that it can be calculated 
+    using a student-t distribution.
     
     Args:
         a {array-like} -- A single input data set
-        conf_level {float} -- The confidence level to use. Must be a value between 0 and 1.
+        conf_level {float} -- The confidence level to use. Must be a value between 0 and 1. (default: 0.95)
     
     Returns:
+        mean: the mean value of the data set
         start: Starting value of the interval
         end: Ending value of the interval
     """
@@ -393,7 +394,29 @@ def ConfidenceInterval(a, conf_level):
     start = mean - conf_int
     end = mean + conf_int
 
-    return start, end 
+    return mean, start, end 
+
+
+def PearsonRandCI(x,y,alpha=0.05):
+    ''' Calculate the Pearson correlation and confidence interval for two data sets.
+    
+    Args:
+        x, y {array-like} -- Input data sets
+        alpha {float} -- Significance level (default: 0.05)
+   
+    Returns:
+        r {float} -- Pearson's correlation coefficient
+        pval {float} -- The corresponding p value
+        lo, hi {float} -- The lower and upper bounds of the confidence interval
+    '''
+
+    r, p = stats.pearsonr(x,y)
+    r_z = np.arctanh(r)
+    se = 1/np.sqrt(len(x)-3)
+    z = stats.norm.ppf(1-alpha/2)
+    lo_z, hi_z = r_z-z*se, r_z+z*se
+    lo, hi = np.tanh((lo_z, hi_z))
+    return r, p, lo, hi
 
 
 def main():
