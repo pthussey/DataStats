@@ -372,7 +372,7 @@ def Jitter(values, jitter=0.5):
     return np.random.normal(0, jitter, n) + values
 
 
-def ConfidenceInterval(a, conf_level=0.95):
+def ConfidenceIntervalForMean(a, conf_level=0.95):
     """
     Calculate the confidence interval for the mean of a data distribution under the assumptions that it can be calculated 
     using a student-t distribution.
@@ -382,41 +382,77 @@ def ConfidenceInterval(a, conf_level=0.95):
         conf_level {float} -- The confidence level to use. Must be a value between 0 and 1. (default: 0.95)
     
     Returns:
-        mean: the mean value of the data set
+        mean: The mean value of the data set
+        stderr: The standard error of the mean (uses ddof = 1)
         start: Starting value of the interval
         end: Ending value of the interval
     """
 
     mean = np.mean(a)
 
-    conf_int = stats.sem(a) * stats.t.ppf((1 + conf_level) / 2, len(a) - 1)
+    stderr = stats.sem(a)
+
+    conf_int = stderr * stats.t.ppf((1 + conf_level) / 2, len(a) - 1)
 
     start = mean - conf_int
     end = mean + conf_int
 
-    return mean, start, end 
+    return mean, stderr, start, end
 
 
-def PearsonRandCI(x,y,alpha=0.05):
-    ''' Calculate the Pearson correlation and confidence interval for two data sets.
+def ConfidenceIntervalForProportion(sample_p, sample_n, conf_level=0.95):
+    """
+    Calculate the confidence interval for a given sample proportion 
+    assuming the conditions are met to use the normal model.
+    
+    Args:
+        sample_p {float} -- Sample proportion (successes). Must be a value between 0 and 1.
+        sample_n {float} -- The size of the sample.
+        conf_level {float} -- The confidence level to use. Must be a value between 0 and 1. (default: 0.95)
+    
+    Returns:
+        stderr: The standard error of the mean
+        start: Starting value of the interval
+        end: Ending value of the interval
+    """
+
+    stderr = np.sqrt(sample_p * (1 - sample_p) / sample_n)
+
+    conf_int = stderr * stats.norm.ppf((1 + conf_level) / 2)
+
+    start = sample_p - conf_int
+    end = sample_p + conf_int
+
+    return stderr, start, end
+
+
+def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
+    ''' Calculate a correlation coefficient and its confidence interval for two data sets.
     
     Args:
         x, y {array-like} -- Input data sets
         alpha {float} -- Significance level (default: 0.05)
+        method {string} -- Select 'pearson' or 'spearman' method (default: 'pearson')
    
     Returns:
-        r {float} -- Pearson's correlation coefficient
-        pval {float} -- The corresponding p value
+        r {float} -- The correlation coefficient
+        p {float} -- The corresponding p value
         lo, hi {float} -- The lower and upper bounds of the confidence interval
     '''
 
-    r, p = stats.pearsonr(x,y)
+    if method == 'pearson':
+        r, p = stats.pearsonr(x,y)
+    elif method == 'spearman':
+        r, p = stats.spearmanr(x,y)
+    else:
+        raise Exception('Must enter either pearson or spearman as a string for method argument')
+
     r_z = np.arctanh(r)
-    se = 1/np.sqrt(len(x)-3)
-    z = stats.norm.ppf(1-alpha/2)
-    lo_z, hi_z = r_z-z*se, r_z+z*se
-    lo, hi = np.tanh((lo_z, hi_z))
-    return r, p, lo, hi
+    stderr = 1 / np.sqrt(len(x) - 3)
+    z = stats.norm.ppf(1 - alpha / 2)
+    low_z, high_z = r_z - (z * stderr), r_z + (z * stderr)
+    low, high = np.tanh((low_z, high_z))
+    return r, p, low, high
 
 
 def main():
