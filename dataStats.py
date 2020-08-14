@@ -372,60 +372,6 @@ def Jitter(values, jitter=0.5):
     return np.random.normal(0, jitter, n) + values
 
 
-def ConfidenceIntervalForMean(a, conf_level=0.95):
-    """
-    Calculate the confidence interval for the mean of a data distribution under the assumptions that it can be calculated 
-    using a student-t distribution.
-    
-    Args:
-        a {array-like} -- A single input data set
-        conf_level {float} -- The confidence level to use. Must be a value between 0 and 1. (default: 0.95)
-    
-    Returns:
-        mean: The mean value of the data set
-        stderr: The standard error of the mean (uses ddof = 1)
-        start: Starting value of the interval
-        end: Ending value of the interval
-    """
-
-    mean = np.mean(a)
-
-    stderr = stats.sem(a)
-
-    conf_int = stderr * stats.t.ppf((1 + conf_level) / 2, len(a) - 1)
-
-    start = mean - conf_int
-    end = mean + conf_int
-
-    return mean, stderr, start, end
-
-
-def ConfidenceIntervalForProportion(sample_p, sample_n, conf_level=0.95):
-    """
-    Calculate the confidence interval for a given sample proportion 
-    assuming the conditions are met to use the normal model.
-    
-    Args:
-        sample_p {float} -- Sample proportion (successes). Must be a value between 0 and 1.
-        sample_n {float} -- The size of the sample.
-        conf_level {float} -- The confidence level to use. Must be a value between 0 and 1. (default: 0.95)
-    
-    Returns:
-        stderr: The standard error of the mean
-        start: Starting value of the interval
-        end: Ending value of the interval
-    """
-
-    stderr = np.sqrt(sample_p * (1 - sample_p) / sample_n)
-
-    conf_int = stderr * stats.norm.ppf((1 + conf_level) / 2)
-
-    start = sample_p - conf_int
-    end = sample_p + conf_int
-
-    return stderr, start, end
-
-
 def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
     ''' Calculate a correlation coefficient and its confidence interval for two data sets.
     
