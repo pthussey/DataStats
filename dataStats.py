@@ -34,6 +34,24 @@ def FitLine(xs, inter, slope):
     return fit_xs, fit_ys
 
 
+def Residuals(xs, ys, inter, slope):
+    """Generates a sequence of residuals for a fitline.
+
+    Args:
+        xs (array-like): sequence of xs
+        ys (array-like): sequence of ys
+        inter (float): intercept of the line
+        slope (float): slope of the line
+
+    Returns:
+        array: a sequence of residuals
+    """
+    xs = np.asarray(xs)
+    ys = np.asarray(ys)
+    res = ys - (inter + slope * xs)
+    return res
+
+
 def NormalCdfValues(mean, std, n=1001):
     """Generates sequences of xs and ps to plot a normal distribution cdf model.
 
@@ -270,7 +288,7 @@ def RvPmfDiffs(rv1,rv2):
 def BiasRv(rv):
     """Computes a biased version of a scipy.stats discrete_rv.
     Replicates the situation in which a survey is asking respondents
-    to report the size of a group the belong to.
+    to report the size of a group they belong to.
     """
     new_probs = []
     for x in rv.xk:
@@ -283,7 +301,7 @@ def BiasRv(rv):
 def UnbiasRv(rv):
     """Computes an unbiased version of a scipy.stats discrete_rv.
     To be used in situations where a survey is asking respondents
-    to report the size of a group the are a part of.
+    to report the size of a group they are a part of.
     """
     new_probs = []
     for x in rv.xk:
@@ -399,6 +417,127 @@ def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
     low_z, high_z = r_z - (z * stderr), r_z + (z * stderr)
     low, high = np.tanh((low_z, high_z))
     return r, p, low, high
+
+
+def ResidualPercentilePlotData(x, y, n_bins=10):
+    """For two variables of interest, generates two sequences of length equal to n_bins: 
+    The first is a sequence of mean values for each bin. 
+    The second is a sequence of residual value rvs (scipy.stats discrete_rv) for each bin.
+    These rvs can then be used to plot cdf at different percentiles: 
+    (ie. x_means vs rv.ppf(p) at different values for p, normally .25, .50, .75)
+    This plot helps to test fit with a linear model.
+
+    Args:
+        x (array-like): x data 
+        y (array-like): y data
+        n_bins (int, optional): Number of bins to be used. Defaults to 10.
+
+    Returns:
+        x_means (array): a sequence of means for each bin 
+        res_rvs (array): a sequence of residual value rvs for each bin
+    """
+    # Calculate the intercept and slope of data
+    linreg_result = stats.linregress(x, y)
+    inter = linreg_result.intercept
+    slope = linreg_result.slope
+    
+    # Calculate the residuals for each data point
+    res = Residuals(x, y,inter, slope)
+    
+    # Bin the x data
+    bins = np.linspace(min(x), max(x), num=n_bins)
+    x_bins = pd.cut(x, bins)
+    
+    # Build a DataFrame to hold everything
+    res_df = pd.DataFrame({'x':x, 'y':y, 'res':res, 'x_bins':x_bins})
+    
+    # Group the data by bins
+    res_df_grouped = res_df.groupby('x_bins')
+    
+    # Get the mean of x for each bin
+    x_means = res_df_grouped.x.mean().values
+    
+    # Build an rv of residual data for each bin
+    res_rvs = np.array([DiscreteRv(data.res) for _,data in res_df_grouped])
+    
+    return x_means, res_rvs
+
+
+def ResampleMean(data, weights=None, iters=100):
+    """Uses sampling with replacement to generate a sampling distribution of mean for a variable.
+    Can then make an rv of the distributions to plot cdf, compute p-value of the mean under null hypothesis (eg. rv.cdf at 0), 
+    and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
+
+    Args:
+        data (array-like): Data for the variable of interest
+        weights (array-like, optional): Can include weights for the data. Used as DataFrame.sample parameter. Defaults to None.
+        iters (int, optional): The number of resampling iterations. Defaults to 100.
+
+    Returns:
+        mean_estimates (list): A mean estimates sampling distribution
+    """
+     
+    # Resample with replacement, calculating the mean of the data and building a list of mean estimates
+    if weights is None:   # In case of no weights, use a Series
+        s = pd.Series(data)
+        mean_estimates = [s.sample(n=len(s), replace=True).mean() for _ in range(iters)]
+    
+    else:    # In case of weights use a DataFrame
+        df = pd.DataFrame({'data':data,'wgt':weights})
+        mean_estimates = [df.sample(n=len(df), replace=True, weights=df.wgt).data.mean() for _ in range(iters)]
+    
+    return mean_estimates
+
+
+def ResampleInterSlope(x, y, iters=100):
+    """Uses sampling with replacement to generate intercept and slope sampling distributions 
+    for two variables of interest.
+    Can then make rvs of these distributions to plot cdf, compute p-value of slope under null hypothesis (eg. rv.cdf at 0), 
+    and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
+
+    Args:
+        x (array-like): x data 
+        y (array-like): y data
+        iters (int, optional): Number of resampling iterations. Defaults to 100.
+
+    Returns:
+        inters (list): intercept sampling distribution 
+        slopes (list): slope sampling distribution
+    """
+    
+    # Make a DataFrame to hold the two sequences
+    df = pd.DataFrame({'x':x, 'y':y})
+    
+    # Initialize intercept and slope lists
+    inters = []
+    slopes = []
+    
+    # Resample the DataFrame and build lists of intercepts and slopes which are the sampling distributions
+    for _ in range(iters):
+        sample = df.sample(n=len(df), replace=True)
+        x_sample = sample.x
+        y_sample = sample.y
+        regress_result = stats.linregress(x_sample, y_sample)
+        inters.append(regress_result.intercept)
+        slopes.append(regress_result.slope)
+    
+    return inters, slopes
+
+
+def SummarizeEstimates(estimates, alpha=0.90):
+    """Computes the mean, standard deviation (std error), and a confidence interval for a sampling distribution (estimates).
+
+    Args:
+        estimates (array-like): A sequence of estimates for a statistic obtained from resampling (sampling distribution)
+        alpha (float): Probability for the confidence interval. Must be between 0 and 1. Defaults to 0.90.
+
+    Returns:
+        mean: mean value of the estimates
+        std: standard deviation of the estimates (std error)
+        confidence interval: interval about the median of the distribution
+    """
+    rv = DiscreteRv(estimates)
+    return np.mean(estimates), np.std(estimates), rv.interval(alpha)
 
 
 def main():
