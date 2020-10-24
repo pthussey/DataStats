@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
+
 import scipy.stats as stats
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+import patsy
 
 
 def DiscreteRv(a):
@@ -538,6 +542,156 @@ def SummarizeEstimates(estimates, alpha=0.90):
     """
     rv = DiscreteRv(estimates)
     return np.mean(estimates), np.std(estimates), rv.interval(alpha)
+
+
+def VariableMiningOLS(df, y):
+    """Searches variables using ordinary least squares regression to find ones that predict the target dependent variable 'y'.
+
+    Args:
+        df (DataFrame): DataFrame that holds all the variables
+        y (string): Column name of dependent variable y
+
+    Returns:
+        variables (list): A list of tuples each containing r-squared value and variable name
+    """
+    
+    variables = []
+    for name in df.columns:
+        try:
+            if df[name].var() < 1e-7:
+                continue
+
+            formula = '{} ~ '.format(y) + name
+            
+            # The following seems to be required in some environments
+            # formula = formula.encode('ascii')
+
+            model = smf.ols(formula, data=df)
+            if model.nobs < len(df)/2:
+                continue
+
+            results = model.fit()
+        except (ValueError, TypeError):
+            continue
+
+        variables.append((results.rsquared, name))
+
+    return variables
+
+
+def VariableMiningLogit(df, y):
+    """Searches variables using logistic regression to find ones that predict the target dependent variable 'y'.
+
+    Args:
+        df (DataFrame): DataFrame that holds all the variables.
+        y (string): Column name of dependent variable y. Must use integer values (ie. 1 for True).
+
+    Returns:
+        variables (list): A list of tuples each containing r-squared value and variable name
+    """
+    variables = []
+    for name in df.columns:
+        try:
+            if df[name].var() < 1e-7:
+                continue
+
+            formula = '{} ~ '.format(y) + name
+            model = smf.logit(formula, data=df)
+            nobs = len(model.endog)
+            if nobs < len(df)/2:
+                continue
+
+            results = model.fit()
+        except:
+            continue
+
+        variables.append((results.prsquared, name))
+
+    return variables
+
+
+def VariableMiningPoisson(df, y):
+    """Searches variables using Poisson regression to find ones that predict the target dependent variable 'y'.
+
+    Args:
+        df (DataFrame): DataFrame that holds all the variables.
+        y (string): Column name of dependent variable y.
+
+    Returns:
+        variables (list): A list of tuples each containing r-squared value and variable name
+    """
+    variables = []
+    for name in df.columns:
+        try:
+            if df[name].var() < 1e-7:
+                continue
+
+            formula = '{} ~ '.format(y) + name
+            model = smf.poisson(formula, data=df)
+            nobs = len(model.endog)
+            if nobs < len(df)/2:
+                continue
+
+            results = model.fit()
+        except:
+            continue
+
+        variables.append((results.prsquared, name))
+
+    return variables
+
+
+def VariableMiningMnlogit(df, y):
+    """Searches variables using multinomial logistic regression to find ones that predict the target dependent variable 'y'.
+
+    Args:
+        df (DataFrame): DataFrame that holds all the variables.
+        y (string): Column name of dependent variable y.
+
+    Returns:
+        variables (list): A list of tuples each containing r-squared value and variable name
+    """
+    variables = []
+    for name in df.columns:
+        try:
+            if df[name].var() < 1e-7:
+                continue
+
+            formula = '{} ~ '.format(y) + name
+            model = smf.mnlogit(formula, data=df)
+            nobs = len(model.endog)
+            if nobs < len(df)/2:
+                continue
+
+            results = model.fit()
+        except:
+            continue
+
+        variables.append((results.prsquared, name))
+
+    return variables
+
+
+def SummarizeRegressionResults(results):
+    """Takes a statsmodels linear regression results object (model.fit()) and 
+    prints the most important parts of linear regression results.
+    Printed independent variable results are coefficent value and pvalue.
+
+    Args:
+        results (statsmodels.regression.linear_model.RegressionResultsWrapper): 
+        statsmodels regression results object
+    """
+    for name, param in results.params.items():
+        pvalue = results.pvalues[name]
+        print('%s   %0.3g   (%.3g)' % (name, param, pvalue))
+
+    try:
+        print('R^2 %.4g' % results.rsquared)
+        ys = results.model.endog
+        print('Std(ys) %.4g' % ys.std())
+        print('Std(res) %.4g' % results.resid.std())
+    except AttributeError:
+        print('R^2 %.4g' % results.prsquared)
 
 
 def main():
