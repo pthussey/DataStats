@@ -467,6 +467,43 @@ def ResidualPercentilePlotData(x, y, n_bins=10):
     return x_means, res_rvs
 
 
+def PercentileRow(array, p):
+    """Selects the row from a sorted array that maps to percentile p.
+
+    p: float 0--100
+
+    returns: NumPy array (one row)
+    """
+    rows, cols = array.shape
+    index = int(rows * p / 100)
+    return array[index,]
+
+
+def PercentileRows(ys_seq, percents):
+    """Given a collection of lines, selects percentiles along vertical axis.
+
+    For example, if ys_seq contains simulation results like ys as a
+    function of time, and percents contains (5, 95), the result would
+    be a 90% CI for each vertical slice of the simulation results.
+
+    ys_seq: sequence of lines (y values)
+    percents: list of percentiles (0-100) to select
+
+    returns: list of NumPy arrays, one for each percentile
+    """
+    nrows = len(ys_seq)
+    ncols = len(ys_seq[0])
+    array = np.zeros((nrows, ncols))
+
+    for i, ys in enumerate(ys_seq):
+        array[i,] = ys
+
+    array = np.sort(array, axis=0)
+
+    rows = [PercentileRow(array, p) for p in percents]
+    return rows
+
+
 def ResampleMean(data, weights=None, iters=100):
     """Uses sampling with replacement to generate a sampling distribution of mean for a variable.
     Can then make an rv of the distributions to plot cdf, compute p-value of the mean under null hypothesis (eg. rv.cdf at 0), 
