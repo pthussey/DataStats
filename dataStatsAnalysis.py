@@ -1,10 +1,15 @@
 import numpy as np
 import pandas as pd
 
+import matplotlib
+import matplotlib.pyplot as plt
+
 import scipy.stats as stats
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import patsy
+
+from collections import defaultdict, Counter
 
 
 def DiscreteRv(a):
@@ -362,24 +367,6 @@ def KdeValues(sample, n=101):
     return xs,ys
 
 
-def SampleRows(df, nrows, replace=False):
-    """Generates a random sample of rows from a dataframe.
-
-    Arguments:
-        df {dataframe} -- The input dataframe
-        nrows {integer} -- The number of rows to sample
-
-    Keyword Arguments:
-        replace {bool} -- [Select whether or not to use replacement in sampling] (default: {False})
-
-    Returns:
-        sample {dataframe} -- The sample dataframe
-    """
-    indices = np.random.choice(df.index, nrows, replace=replace)
-    sample = df.loc[indices]
-    return sample
-
-
 def Jitter(values, jitter=0.5):
     """Adds jitter to a scatter plot to remove 'column' effects of rounding for better visualization.
 
@@ -467,6 +454,26 @@ def ResidualPercentilePlotData(x, y, n_bins=10):
     return x_means, res_rvs
 
 
+def SampleRows(df, nrows, replace=False):
+    """Generates a random sample of rows from a dataframe. 
+    Use replace = True and nrows = len(df) to do a resampling of the dataframe. 
+    This is used to estimate sampling error and build CIs by computation.
+
+    Arguments:
+        df {dataframe} -- The input dataframe
+        nrows {integer} -- The number of rows to sample
+
+    Keyword Arguments:
+        replace {bool} -- [Select whether or not to use replacement in sampling] (default: {False})
+
+    Returns:
+        sample {dataframe} -- The sample dataframe
+    """
+    indices = np.random.choice(df.index, nrows, replace=replace)
+    sample = df.loc[indices]
+    return sample
+
+
 def PercentileRow(array, p):
     """Selects the row from a sorted array that maps to percentile p.
 
@@ -474,16 +481,18 @@ def PercentileRow(array, p):
 
     returns: NumPy array (one row)
     """
-    rows, cols = array.shape
+    rows, _ = array.shape
     index = int(rows * p / 100)
     return array[index,]
 
 
 def PercentileRows(ys_seq, percents):
-    """Given a collection of lines, selects percentiles along vertical axis.
+    """Given a collection of lines, selects percentiles along vertical axis. 
+    This can be used after building a list of sequences using resampling, 
+    and then the returned rows can be plotted (fill between) to produce a CI.
 
     For example, if ys_seq contains simulation results like ys as a
-    function of time, and percents contains (5, 95), the result would
+    function of time, and percents contains ([5, 95]), the result would
     be a 90% CI for each vertical slice of the simulation results.
 
     ys_seq: sequence of lines (y values)
@@ -506,7 +515,7 @@ def PercentileRows(ys_seq, percents):
 
 def ResampleMean(data, weights=None, iters=100):
     """Uses sampling with replacement to generate a sampling distribution of mean for a variable.
-    Can then make an rv of the distributions to plot cdf, compute p-value of the mean under null hypothesis (eg. rv.cdf at 0), 
+    Can then make an rv of the distributions to plot cdf, compute p-value of hypothesized mean (eg. rv.cdf at 0), 
     and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
 
     Args:
@@ -517,7 +526,6 @@ def ResampleMean(data, weights=None, iters=100):
     Returns:
         mean_estimates (list): A mean estimates sampling distribution
     """
-     
     # Resample with replacement, calculating the mean of the data and building a list of mean estimates
     if weights is None:   # In case of no weights, use a Series
         s = pd.Series(data)
@@ -531,9 +539,8 @@ def ResampleMean(data, weights=None, iters=100):
 
 
 def ResampleInterSlope(x, y, iters=100):
-    """Uses sampling with replacement to generate intercept and slope sampling distributions 
-    for two variables of interest.
-    Can then make rvs of these distributions to plot cdf, compute p-value of slope under null hypothesis (eg. rv.cdf at 0), 
+    """Uses sampling with replacement to generate intercept and slope sampling distributions for two variables of interest.
+    Can then make rvs of these distributions to plot cdf, compute p-value of hypothesized values (eg. rv.cdf at 0), 
     and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
 
     Args:
@@ -565,6 +572,50 @@ def ResampleInterSlope(x, y, iters=100):
     return inters, slopes
 
 
+def ResampleDiffMeans(a, b, iters=1000, onesided=False):
+    """Generates a list of differences in means (a sampling distribution) of two data sets via randomized shuffling of pooled data. 
+    Can then make rvs of this distribution to plot cdf, compute p-value of mean difference from the original data (eg. rv.cdf at orignal mean difference), 
+    and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
+    Can also use the 'max' built-in to find what the most extreme value is from the simluations.
+
+    Args:
+        a (array-like): Input data set 1
+        b (array-like): Input data set 2
+        iters (int, optional): The number of simulations to run (Defaults to 1000)
+        onesided (bool): If set to True a onesided test is run, not using absolute value of difference (defaults to False) 
+
+    Returns:
+        list: The differences in means from the simulations
+    """
+    # Combine the two data sets
+    a_size = len(a)
+    pooled_data = np.hstack((a, b))
+
+    # Calculate the difference in means of randomized samples from the pooled data
+    diff_mean_results = []
+    
+    if onesided == False:
+        for _ in range(iters):
+            np.random.shuffle(pooled_data)
+            group1 = pooled_data[:a_size]
+            group2 = pooled_data[a_size:]
+            result = abs(group1.mean() - group2.mean())
+            diff_mean_results.append(result)
+    
+    elif onesided == True:
+        for _ in range(iters):
+            np.random.shuffle(pooled_data)
+            group1 = pooled_data[:a_size]
+            group2 = pooled_data[a_size:]
+            result = group1.mean() - group2.mean()
+            diff_mean_results.append(result)
+     
+    else:
+        raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
+    
+    return diff_mean_results
+
+
 def SummarizeEstimates(estimates, alpha=0.90):
     """Computes the mean, standard deviation (std error), and a confidence interval for a sampling distribution (estimates).
 
@@ -579,6 +630,29 @@ def SummarizeEstimates(estimates, alpha=0.90):
     """
     rv = DiscreteRv(estimates)
     return np.mean(estimates), np.std(estimates), rv.interval(alpha)
+
+
+def PvalueFromEstimates(estimates, test_statistic, tail='left'):
+    """Generates a pvalue from a sampling distribution (sequence of estimates) for a given test statistic.
+
+    Args:
+        estimates (array-like): The sampling distribution sequence
+        test_statistic (float): The test statistic to be used to generate the pvalue
+        tail (str, optional): Determines which tail to use for pvalue. Accepts 'left' or 'right' only. Defaults to 'left'.
+
+    Returns:
+        pvalue: Pvalue for test statistic
+    """
+    rv = DiscreteRv(estimates)
+    
+    if tail == 'left':
+        pvalue = rv.cdf(test_statistic)
+    elif tail == 'right':
+        pvalue = 1 - rv.cdf(test_statistic)
+    else:
+        raise Exception('The value of \'tail\' can only be either \'left\' or \'right\'')
+    
+    return pvalue
 
 
 def VariableMiningOLS(df, y):
@@ -729,6 +803,215 @@ def SummarizeRegressionResults(results):
         print('Std(res) %.4g' % results.resid.std())
     except AttributeError:
         print('R^2 %.4g' % results.prsquared)
+
+
+def HazardValues(rv):
+    """Takes a scipy.stats discrete rv and generates the x and y sequences 
+    to plot a hazard function for the data.
+
+    Args:
+        rv (scipy.stats discrete_rv): An rv representing the data
+
+    Returns:
+        xs (array): The xk values of the data
+        ys (array): The hazard function values
+    """
+    hazards=[]
+    
+    for k in rv.xk[:-1]:
+        hazard = (rv.sf(k) - rv.sf(k+1)) / rv.sf(k)
+        hazards.append(hazard)
+    
+    return rv.xk[:-1], np.array(hazards)
+
+
+def EstimateHazardValues(duration, event_observed, verbose=False):
+    """Estimates the hazard function by Kaplan-Meier. 
+    The returned series can be used to plot the hazard function (s.index versus s.values)
+
+    Args:
+        duration (array-like): list of time durations until event (or up until time of measure if ongoing)
+        event_observed (array-like): list indicating whether event was observed or not (1,0)
+        verbose (bool, optional): Whether to display intermediate results. Defaults to False.
+
+    Returns:
+        lams (pandas Series): A Series with index of durations and corresponding hazard values
+    """
+    if np.sum(np.isnan(duration)):
+        raise ValueError("duration contains NaNs")
+    if np.sum(np.isnan(event_observed)):
+        raise ValueError("event_observed contains NaNs")
+
+    # Create a DataFrame to hold both the duration and event data
+    df = pd.DataFrame({'duration' : duration, 'event' : event_observed})
+        
+    hist_complete = Counter(df[df.event == 1].duration)
+    hist_ongoing = Counter(df[df.event == 0].duration)
+
+    ts = list(hist_complete | hist_ongoing)
+    ts.sort()
+
+    at_risk = len(df)
+
+    lams = pd.Series(index=ts)
+    for t in ts:
+        ended = hist_complete[t]
+        censored = hist_ongoing[t]
+
+        lams[t] = ended / at_risk
+        if verbose:
+            print(t, at_risk, ended, censored, lams[t])
+        at_risk -= ended + censored
+
+    return lams
+
+
+class HypothesisTest(object):
+    """Represents a hypothesis test. 
+    The actual test statistic for the data is available through a .actual attribute. 
+    After PValue is run the scipy stats random variable for the sampling distribution is available through a .rv attribute. 
+    The cdf of the distribution along with a line representing the test statistic value can be plotted using PlotCdf(). 
+    The largest test statistic seen in the simulations is given by MaxTestStat()."""
+
+    def __init__(self, data):
+        """Initializes.
+
+        data: data in whatever form is relevant
+        """
+        self.data = data
+        self.MakeModel()
+        self.actual = self.TestStatistic(data)
+        self.test_stats = None
+        self.rv = None
+
+    def PValue(self, iters=1000):
+        """Computes the distribution of the test statistic and p-value.
+
+        iters: number of iterations
+
+        returns: float p-value
+        """
+        self.test_stats = [self.TestStatistic(self.RunModel())
+                           for _ in range(iters)]
+        self.rv = DiscreteRv(self.test_stats)
+
+        count = sum(1 for x in self.test_stats if x >= self.actual)
+        return count / iters
+
+    def MaxTestStat(self):
+        """Returns the largest test statistic seen during simulations.
+        """
+        return max(self.test_stats)
+
+    def PlotCdf(self, label=None):
+        """Draws a Cdf with vertical lines at the observed test stat.
+        """      
+        def VertLine(x):
+            """Draws a vertical line at x."""
+            plt.plot([x, x], [0, 1], color='0.8')
+
+        VertLine(self.actual)
+        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk))
+
+    def TestStatistic(self, data):
+        """Computes the test statistic.
+
+        data: data in whatever form is relevant        
+        """
+        raise UnimplementedMethodException()
+
+    def MakeModel(self):
+        """Build a model of the null hypothesis.
+        """
+        pass
+
+    def RunModel(self):
+        """Run the model of the null hypothesis.
+
+        returns: simulated data
+        """
+        raise UnimplementedMethodException()
+
+
+class DiffMeansPermute(HypothesisTest):
+
+    def TestStatistic(self, data):
+        group1, group2 = data
+        test_stat = abs(group1.mean() - group2.mean())
+        return test_stat
+
+    def MakeModel(self):
+        group1, group2 = self.data
+        self.n, self.m = len(group1), len(group2)
+        self.pool = np.hstack((group1, group2))
+
+    def RunModel(self):
+        np.random.shuffle(self.pool)
+        data = self.pool[:self.n], self.pool[self.n:]
+        return data
+
+
+class DiffMeansPermuteOneSided(DiffMeansPermute):
+
+    def TestStatistic(self, data):
+        group1, group2 = data
+        test_stat = group1.mean() - group2.mean()
+        return test_stat
+
+
+class DiffMeansRandom(DiffMeansPermute):
+    '''Tests a difference in means using resampling.'''
+
+    def RunModel(self):
+        group1 = np.random.choice(self.pool, self.n, replace=True)
+        group2 = np.random.choice(self.pool, self.m, replace=True)
+        return group1, group2
+
+
+class DiffStdPermute(DiffMeansPermute):
+
+    def TestStatistic(self, data):
+        group1, group2 = data
+        test_stat = group1.std() - group2.std()
+        return test_stat
+
+
+class CorrelationPermute(HypothesisTest):
+
+    def TestStatistic(self, data):
+        xs, ys = data
+        test_stat = abs(stats.pearsonr(xs, ys)[0])
+        return test_stat
+
+    def RunModel(self):
+        xs, ys = self.data
+        xs = np.random.permutation(xs)
+        return xs, ys
+
+
+class ChiSquaredTest(HypothesisTest):
+    '''Represents a hypothesis test for two sequences, observed and expected. 
+    The sequences must be the same length, be integer counts of a categorical variable 
+    and have the same number of total values. 
+    If the number of total values is different, first normalize the expected values 
+    and then create a new expected values sequence by multiplying by the total number of observed values. 
+    adjust_expected = expected/sum(expected)*sum(observed)'''
+    
+    def TestStatistic(self, data):
+        observed, expected = data
+        test_stat = sum((observed - expected)**2 / expected)
+        return test_stat
+
+    def RunModel(self):
+        observed, expected = self.data
+        n = sum(observed)
+        values = list(range(len(expected)))
+        p_exp = expected/sum(expected)
+        hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
+        hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
+        sorted_hist = sorted(hist.items())
+        model_observed = np.array([x[1] for x in sorted_hist])
+        return model_observed, expected
 
 
 def main():
