@@ -540,7 +540,9 @@ def ResampleMean(data, weights=None, iters=100):
 
 def ResampleInterSlope(x, y, iters=100):
     """Uses sampling with replacement to generate intercept and slope sampling distributions for two variables of interest.
-    Can then make rvs of these distributions to plot cdf, compute p-value of hypothesized values (eg. rv.cdf at 0), 
+    Also generates a sequence of fys to be used when adding a CI to a regression plot.
+    Put the fys_seq into PercentileRows to get the low/high lines for plotting.
+    Can also make rvs of the inter/slope distributions to plot cdf, compute p-value of hypothesized values (eg. rv.cdf at 0), 
     and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
 
     Args:
@@ -551,6 +553,7 @@ def ResampleInterSlope(x, y, iters=100):
     Returns:
         inters (list): intercept sampling distribution 
         slopes (list): slope sampling distribution
+        fys_seq
     """
     
     # Make a DataFrame to hold the two sequences
@@ -569,7 +572,12 @@ def ResampleInterSlope(x, y, iters=100):
         inters.append(regress_result.intercept)
         slopes.append(regress_result.slope)
     
-    return inters, slopes
+    fys_seq = []
+    for inter, slope in zip(inters, slopes):
+        fxs, fys = FitLine(x, inter, slope)
+        fys_seq.append(fys)
+
+    return inters, slopes, fys_seq
 
 
 def ResampleDiffMeans(a, b, iters=1000, onesided=False):
@@ -1012,6 +1020,18 @@ class ChiSquaredTest(HypothesisTest):
         sorted_hist = sorted(hist.items())
         model_observed = np.array([x[1] for x in sorted_hist])
         return model_observed, expected
+
+
+def DollarThousandsFormat(value):
+    """Formats a value into dollars with a thousands separator. Absolute value applied.
+
+    Args:
+        value (int or float): Value to be formatted
+
+    Returns:
+        string: formatted value
+    """
+    return '${:,.0f}'.format(abs(value))
 
 
 def main():
