@@ -582,7 +582,7 @@ def ResampleInterSlope(x, y, iters=100):
 
 def ResampleDiffMeans(a, b, iters=1000, onesided=False):
     """Generates a list of differences in means (a sampling distribution) of two data sets via randomized shuffling of pooled data. 
-    Can then make rvs of this distribution to plot cdf, compute p-value of mean difference from the original data (eg. rv.cdf at orignal mean difference), 
+    Can then make rvs of this distribution to plot cdf, compute p-value of mean difference from the original data (eg. rv.cdf at measured mean difference), 
     and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
     Can also use the 'max' built-in to find what the most extreme value is from the simluations.
 
@@ -593,7 +593,8 @@ def ResampleDiffMeans(a, b, iters=1000, onesided=False):
         onesided (bool): If set to True a onesided test is run, not using absolute value of difference (defaults to False) 
 
     Returns:
-        list: The differences in means from the simulations
+        test_diff: Original actual difference in means value
+        diff_mean_results: List of the differences in means obtained from resampling
     """
     # Combine the two data sets
     a_size = len(a)
@@ -603,6 +604,8 @@ def ResampleDiffMeans(a, b, iters=1000, onesided=False):
     diff_mean_results = []
     
     if onesided == False:
+        test_diff = abs(a.mean() - b.mean())
+
         for _ in range(iters):
             np.random.shuffle(pooled_data)
             group1 = pooled_data[:a_size]
@@ -611,6 +614,8 @@ def ResampleDiffMeans(a, b, iters=1000, onesided=False):
             diff_mean_results.append(result)
     
     elif onesided == True:
+        test_diff = a.mean() - b.mean()
+
         for _ in range(iters):
             np.random.shuffle(pooled_data)
             group1 = pooled_data[:a_size]
@@ -621,7 +626,49 @@ def ResampleDiffMeans(a, b, iters=1000, onesided=False):
     else:
         raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
     
-    return diff_mean_results
+    return test_diff, diff_mean_results
+
+
+def ResampleCorrelation(x, y, iters=1000, onesided=False):
+    """Generates a list of correlations (a sampling distribution) for two variables via permutation of one of the variables, 
+    simulating the null hypothesis of no correlation between the variables. 
+    Can then make rvs of this distribution to plot cdf, compute p-value for the original correlation value (eg. rv.cdf at actual correlation(test_r)), 
+    and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
+    Can also use the 'max' built-in to find what the most extreme value is from the simluations.
+
+    Args:
+        x (array-like): Input variable 1
+        y (array-like): Input variable 2
+        iters (int, optional): [description]. Defaults to 1000.
+        onesided (bool, optional): [description]. Defaults to False.
+
+    Returns:
+        test_r: Original actual correlation value
+        corrs: List of the correlations obtained from resampling
+    """
+    xs, ys = np.array(x), np.array(y)
+    
+    corrs=[]    
+    if onesided == False:
+        test_r = abs(stats.pearsonr(xs, ys)[0])
+        
+        for _ in range(iters):
+            xs = np.random.permutation(xs)
+            corr = abs(stats.pearsonr(xs, ys)[0])
+            corrs.append(corr)
+    
+    elif onesided == True:
+        test_r = stats.pearsonr(xs, ys)[0]
+        
+        for _ in range(iters):
+            xs = np.random.permutation(xs)
+            corr = stats.pearsonr(xs, ys)[0]
+            corrs.append(corr)
+
+    else:
+        raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
+    
+    return test_r, corrs
 
 
 def SummarizeEstimates(estimates, alpha=0.90):
@@ -874,6 +921,10 @@ def EstimateHazardValues(duration, event_observed, verbose=False):
     return lams
 
 
+class UnimplementedMethodException(Exception):
+    """Exception if someone calls a method that should be overridden."""
+
+
 class HypothesisTest(object):
     """Represents a hypothesis test. 
     The actual test statistic for the data is available through a .actual attribute. 
@@ -941,7 +992,7 @@ class HypothesisTest(object):
         raise UnimplementedMethodException()
 
 
-class DiffMeansPermute(HypothesisTest):
+class HTDiffMeansPermute(HypothesisTest):
 
     def TestStatistic(self, data):
         group1, group2 = data
@@ -959,7 +1010,7 @@ class DiffMeansPermute(HypothesisTest):
         return data
 
 
-class DiffMeansPermuteOneSided(DiffMeansPermute):
+class HTDiffMeansPermuteOneSided(HTDiffMeansPermute):
 
     def TestStatistic(self, data):
         group1, group2 = data
@@ -967,7 +1018,7 @@ class DiffMeansPermuteOneSided(DiffMeansPermute):
         return test_stat
 
 
-class DiffMeansRandom(DiffMeansPermute):
+class HTDiffMeansRandom(HTDiffMeansPermute):
     '''Tests a difference in means using resampling.'''
 
     def RunModel(self):
@@ -976,7 +1027,7 @@ class DiffMeansRandom(DiffMeansPermute):
         return group1, group2
 
 
-class DiffStdPermute(DiffMeansPermute):
+class HTDiffStdPermute(HTDiffMeansPermute):
 
     def TestStatistic(self, data):
         group1, group2 = data
@@ -984,7 +1035,7 @@ class DiffStdPermute(DiffMeansPermute):
         return test_stat
 
 
-class CorrelationPermute(HypothesisTest):
+class HTCorrelationPermute(HypothesisTest):
 
     def TestStatistic(self, data):
         xs, ys = data
@@ -997,7 +1048,7 @@ class CorrelationPermute(HypothesisTest):
         return xs, ys
 
 
-class ChiSquaredTest(HypothesisTest):
+class HTChiSquaredTest(HypothesisTest):
     '''Represents a hypothesis test for two sequences, observed and expected. 
     The sequences must be the same length, be integer counts of a categorical variable 
     and have the same number of total values. 
@@ -1032,6 +1083,41 @@ def DollarThousandsFormat(value):
         string: formatted value
     """
     return '${:,.0f}'.format(abs(value))
+
+
+def TrimData(data, limits=None, prop=None):
+    """Trims data by either limits on values or a proportion.
+
+    Args:
+        data (array-like): A sequence of data
+        limits (list or tuple, optional): Must be entered as a list or tuple of len 2. Defaults to None.
+        prop (float, optional): The proportion to be trimmed.
+        The entered prop will be trimmed from each end.
+        Ex. entering 0.05 trims that amount of each end, trimming 10% in total.
+        Must enter as a proportion less than 0.5. Defaults to None.
+
+    Returns:
+        array: The trimmed array
+    """
+    data_array = sorted(np.array(data)) # Convert to array and sort values
+    
+    if (limits == None) & (prop == None):
+        raise Exception('Must use either the limits or prop parameter')
+    elif (limits != None) & (prop != None):
+        raise Exception('Can only use limits or prop parameter, not both')
+    else:
+        if (limits != None) & (prop == None):
+            if type(limits) not in [list, tuple]:
+                raise TypeError('limits must be either a list or a tuple of values')      
+            else:
+                data_trimmed = [x for x in data_array if ((x>limits[0]) & (x<limits[1]))]
+        else:
+            if prop >= 0.5:
+                raise ValueError('prop must be a proportion less than 0.5')
+            else:
+                trim = int(prop*len(data_array))
+                data_trimmed = data_array[trim:-trim]
+    return data_trimmed
 
 
 def main():
