@@ -789,7 +789,7 @@ def ResampleCorrelation_Ha(x, y, iters=1000, method='pearson'):
     return actual_r, np.array(corrs)
 
 
-def ResampleChisquared(observed, expected, iters=1000):
+def ResampleChiSquare(observed, expected, iters=1000):
     """Generates a chisquared statistic sampling distribution by randomly choosing values 
     according to the expected probablities to simulate the null hypothesis. 
     The sequences must be the same length, be integer counts of a categorical variable 
@@ -831,6 +831,23 @@ def ResampleChisquared(observed, expected, iters=1000):
         chis.append(chi)
     
     return test_chi, np.array(chis)
+
+
+def ChiSquareContribution(obs, exp):
+    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
+    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
+
+    Args:
+        obs (array-like): The observed frequency array
+        exp (array-like): The expected frequency array
+
+    Returns:
+        array: Chi square contribution array
+    """
+    obs_array = np.array(obs)
+    exp_array = np.array(exp)
+    
+    return (obs_array - exp_array)**2/exp_array
 
 
 def SummarizeEstimates(estimates, alpha=0.95):
@@ -1101,7 +1118,7 @@ class HypothesisTest(object):
         """
         self.data = data
         self.MakeModel()
-        self.actual = self.TestStatistic(data)
+        self.actual = self.TestStatistic(data) # pylint: disable=assignment-from-no-return
         self.test_stats = None
         self.rv = None
 
@@ -1132,7 +1149,7 @@ class HypothesisTest(object):
             plt.plot([x, x], [0, 1], color='0.8')
 
         VertLine(self.actual)
-        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk))
+        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk)) # pylint: disable=no-member
 
     def TestStatistic(self, data):
         """Computes the test statistic.
@@ -1210,7 +1227,7 @@ class HTCorrelationPermute(HypothesisTest):
         return xs, ys
 
 
-class HTChiSquaredTest(HypothesisTest):
+class HTChiSquare(HypothesisTest):
     '''Represents a hypothesis test for two sequences, observed and expected. 
     Pass the sequences as arrays. 
     The sequences must be the same length, be integer counts of a categorical variable 
