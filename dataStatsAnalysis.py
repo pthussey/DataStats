@@ -889,6 +889,53 @@ def PvalueFromEstimates(estimates, test_statistic, tail='right'):
     return pvalue
 
 
+def PowerDiffMeans(a, b, alpha = 0.05, num_runs=1000):
+    """Calculates power for the difference in means between two groups. 
+    This is done by resampling each group to simulate sampling the population, 
+    then pooling and shuffling the data to simulate the null hypothesis in each run. 
+    The calculation is a two-sided test (using absolute value of the test statistic). 
+    The equivalent in statsmodels is sms.TTestIndPower().
+
+    Args:
+        a (array-like): group 1
+        b (array-like): group 2
+        alpha (float, optional): Significance level used. Defaults to 0.05.
+        num_runs (int, optional): [description]. Defaults to 1000.
+
+    Returns:
+        float: power
+    """
+    a = np.array(a)
+    b = np.array(b)
+    count = 0
+    
+    for _ in range(num_runs):
+        sample1 = np.random.choice(a, size=len(a), replace=True)
+        sample2 = np.random.choice(b, size=len(b), replace=True)
+            
+        pooled_data = np.hstack((sample1, sample2))
+        sample1_size=len(sample1)
+            
+        diff_means = abs(sample1.mean() - sample2.mean())
+        
+        diff_mean_results = []
+
+        for _ in range(100):
+            np.random.shuffle(pooled_data)
+            group1 = pooled_data[:sample1_size]
+            group2 = pooled_data[sample1_size:]
+            result = abs(group1.mean() - group2.mean())
+            diff_mean_results.append(result)
+                  
+        rv = DiscreteRv(diff_mean_results)
+            
+        p_value = 1 - rv.cdf(diff_means)
+        if p_value > alpha:
+            count += 1
+    
+    return 1 - count / num_runs
+
+
 def VariableMiningOLS(df, y):
     """Searches variables using ordinary least squares regression to find ones that predict the target dependent variable 'y'.
 
