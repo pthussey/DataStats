@@ -3,4 +3,4 @@
 
 I wrote the functions in the dataStatsAnaylsis.py module because I wanted to have a tool box of data analysis / statistical functions to use in my work after finishing the ThinkStats book.
 
-I chose to do this rather than just use the classes and functions supplied in the book because I want to use methods the methods scipy.stats / statsmodels directly and also use methods that do not depend on the book's classes and objects.
+I chose to do this rather than just use the classes and functions supplied in the book because going through this exercise has proven to be a great way to learn the material more deeply. Also it means I don't need to be dependent on using the supplied code, which allows me to continue building new functionality as I need it.
