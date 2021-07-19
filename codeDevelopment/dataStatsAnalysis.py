@@ -382,9 +382,7 @@ def Jitter(values, jitter=0.5):
 
 
 def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
-    ''' Calculate a correlation coefficient and a correlation confidence interval (CI) for two variables. 
-    Uses a parametric approach to calculate the CI. 
-    A non-parametric CI can be calculated from the results of the ResampleCorrelation_Ha function.
+    ''' Calculate a correlation coefficient and its confidence interval for two data sets.
     
     Args:
         x, y {array-like} -- Input data sets
@@ -515,18 +513,15 @@ def PercentileRows(ys_seq, percents):
     return rows
 
 
-def ResampleMean(data, weights=None, iters=1000):
+def ResampleMean(data, weights=None, iters=100):
     """Uses sampling with replacement to generate a sampling distribution of mean for a variable.
-    Can then make an rv of the sampling distribution to calculate the sampling distribution mean, 
-    std deviation (std error), and confidence interval (rv.interval). 
-    Using the rv, can also plot the cdf and compute the one-sided p-value of a hypothesized mean (eg. rv.cdf at 0). 
-    A two-sided p-value can be obtained by doubling the one-sided p-value if appropriate for the particular case.
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
+    Can then make an rv of the distributions to plot cdf, compute p-value of hypothesized mean (eg. rv.cdf at 0), 
+    and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
 
     Args:
         data (array-like): Data for the variable of interest
         weights (array-like, optional): Can include weights for the data. Used as DataFrame.sample parameter. Defaults to None.
-        iters (int, optional): The number of resampling iterations. Defaults to 1000.
+        iters (int, optional): The number of resampling iterations. Defaults to 100.
 
     Returns:
         mean_estimates (array): A mean estimates sampling distribution
@@ -543,18 +538,17 @@ def ResampleMean(data, weights=None, iters=1000):
     return np.array(mean_estimates)
 
 
-def ResampleInterSlope(x, y, iters=1000):
+def ResampleInterSlope(x, y, iters=100):
     """Uses sampling with replacement to generate intercept and slope sampling distributions for two variables of interest.
     Also generates a sequence of fys to be used when adding a CI to a regression plot.
     Put the fys_seq into PercentileRows to get the low/high lines for plotting.
     Can also make rvs of the inter/slope distributions to plot cdf, compute p-value of hypothesized values (eg. rv.cdf at 0), 
     and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
 
     Args:
         x (array-like): x data 
         y (array-like): y data
-        iters (int, optional): Number of resampling iterations. Defaults to 1000.
+        iters (int, optional): Number of resampling iterations. Defaults to 100.
 
     Returns:
         inters (array): intercept sampling distribution 
@@ -589,7 +583,7 @@ def ResampleInterSlope(x, y, iters=1000):
 def ResampleDiffMeans_H0(a, b, iters=1000, onesided=False):
     """Generates a difference in means sampling distribution for the null hypothesis that two groups are the same via permutation (randomized shuffling) of pooled data. 
     Can then make an rv of this distribution to plot the cdf and compute the p-value of of the actual difference (eg. rv.cdf at the actual difference). 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
+    Can also use the 'max' built-in to find what the most extreme value is from the simluations.
 
     Args:
         a (array-like): Input data set 1
@@ -639,11 +633,9 @@ def ResampleDiffMeans_H0(a, b, iters=1000, onesided=False):
 def ResampleDiffMeans_Ha(a, b, iters=1000):
     """Generates a difference in means sampling distribution for the alternative hypothesis that two groups differ via resampling of each group. 
     In this case the resampling is done on each sample separately. 
-    (ie. assuming the alternative hypothesis that the samples are different) 
-    Can then make an rv of this distribution to calculate sampling distribution mean, std deviation (std error), and confidence interval (rv.interval). 
-    Can also get a one-sided p-value for case of no difference null hypothesis using rv.cdf(0). 
-    For two-sided p-value, can double the one-sided if sampling distribution is symmetrical or use the H0 version of this function. 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
+    (ie. assuming the alternative hypothesis that the samples are different)
+    Can then make an rv of this distribution to calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval). 
+    If a p-value needs to be calculated use the the H0 version of this function.
 
     Args:
         a (array-like): Input data set 1
@@ -670,17 +662,16 @@ def ResampleDiffMeans_Ha(a, b, iters=1000):
     return test_diff, np.array(diff_mean_results)
 
 
-def ResampleCorrelation_H0(x, y, iters=1000, onesided=False, method='pearson'):
+def ResampleCorrelation(x, y, iters=1000, onesided=False):
     """Generates a correlation sampling distribution for the null hypothesis of no correlation between the variables via permutation of one of the variables. 
     Can then make an rv of this distribution to plot cdf, compute p-value for the actual correlation value (eg. rv.cdf at actual correlation(test_r)). 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
+    Can also use the 'max' built-in to find what the most extreme value is from the simluations.
 
     Args:
         x (array-like): Input variable 1
         y (array-like): Input variable 2
         iters (int): The number of simulations to run (Defaults to 1000)
         onesided (bool): If set to True a onesided test, that does not use absolute value of difference, is run (Defaults to False)
-        method (string): Select 'pearson' or 'spearman' method (default: 'pearson')
 
     Returns:
         test_r: Original actual correlation value
@@ -688,117 +679,40 @@ def ResampleCorrelation_H0(x, y, iters=1000, onesided=False, method='pearson'):
     """
     xs, ys = np.array(x), np.array(y)
     
-    if method == 'pearson':
-
-        corrs=[]    
-        if onesided == False:
-            test_r = abs(stats.pearsonr(xs, ys)[0])
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = abs(stats.pearsonr(xs, ys)[0])
-                corrs.append(corr)
-
-        elif onesided == True:
-            test_r = stats.pearsonr(xs, ys)[0]
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = stats.pearsonr(xs, ys)[0]
-                corrs.append(corr)
-
-        else:
-            raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
+    corrs=[]    
+    if onesided == False:
+        test_r = abs(stats.pearsonr(xs, ys)[0])
+        
+        for _ in range(iters):
+            xs = np.random.permutation(xs)
+            corr = abs(stats.pearsonr(xs, ys)[0])
+            corrs.append(corr)
     
-    elif method == 'spearman':
+    elif onesided == True:
+        test_r = stats.pearsonr(xs, ys)[0]
+        
+        for _ in range(iters):
+            xs = np.random.permutation(xs)
+            corr = stats.pearsonr(xs, ys)[0]
+            corrs.append(corr)
 
-        corrs=[]    
-        if onesided == False:
-            test_r = abs(stats.spearmanr(xs, ys)[0])
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = abs(stats.spearmanr(xs, ys)[0])
-                corrs.append(corr)
-
-        elif onesided == True:
-            test_r = stats.spearmanr(xs, ys)[0]
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = stats.spearmanr(xs, ys)[0]
-                corrs.append(corr)
-
-        else:
-            raise TypeError('\'onesided\' parameter only accepts Boolean True or False')        
-    
     else:
-        raise Exception('Must enter either pearson or spearman as a string for method argument')       
+        raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
     
     return test_r, np.array(corrs)
 
 
-def ResampleCorrelation_Ha(x, y, iters=1000, method='pearson'):
-    """Generates a correlation sampling distribution for the alternative hypothesis of correlation existing between the variables. 
-    This is done by resampling x, y pairs and calculating correlation on new samples. 
-    Can then make an rv of this distribution to calculate sampling distribution mean, std deviation (std error), and confidence interval (rv.interval). 
-    Can also get a one-sided p-value for case of no difference null hypothesis using rv.cdf(0). 
-    For two-sided p-value, can double the one-sided if sampling distribution is symmetrical or use the H0 version of this function. 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        x (array-like): Input variable 1
-        y (array-like): Input variable 2
-        iters (int): The number of simulations to run (Defaults to 1000)
-        method (string): Select 'pearson' or 'spearman' method (default: 'pearson')
-        
-    Returns:
-        actual_r: Original actual correlation value
-        corrs (array): Sampling distribution for the alternative hypothesis of no correlation obtained from resampling
-    """
-    if method == 'pearson':  
-        # Calculate actual correlation
-        actual_r = stats.pearsonr(x, y)[0]
-
-        # Create a dataframe to hold the x and y values as pairs
-        df = pd.DataFrame({'x':x, 'y': y})
-
-        corrs=[]    
-        for _ in range(iters):
-            sample = df.sample(n=len(df), replace=True)
-            r = stats.pearsonr(sample.x, sample.y)[0]
-            corrs.append(r)
-    
-    elif method == 'spearman':
-        # Calculate actual correlation
-        actual_r = stats.spearmanr(x, y)[0]
-
-        # Create a dataframe to hold the x and y values as pairs
-        df = pd.DataFrame({'x':x, 'y': y})
-
-        corrs=[]    
-        for _ in range(iters):
-            sample = df.sample(n=len(df), replace=True)
-            r = stats.spearmanr(sample.x, sample.y)[0]
-            corrs.append(r)
-    
-    else:
-        raise Exception('Must enter either pearson or spearman as a string for method argument')
-      
-    return actual_r, np.array(corrs)
-
-
-def ResampleChiSquare(observed, expected, iters=1000):
+def ResampleChisquared(observed, expected, iters=1000):
     """Generates a chisquared statistic sampling distribution by randomly choosing values 
     according to the expected probablities to simulate the null hypothesis. 
     The sequences must be the same length, be integer counts of a categorical variable 
-    and the sum of the sequence values must be the same. 
+    and have the sum of the sequence values must be the same. 
     If the sum of the sequence values is different, first normalize the expected values 
     and then create a new expected values sequence by multiplying by the total number of observed values. 
     adjust_expected = expected/sum(expected)*sum(observed) 
     Can then make an rv of this distribution to plot cdf and  
     compute a p-value for the actual chi-squared statistic (eg. rv.cdf at actual statistic (test_chi)). 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
+    Can also use the 'max' built-in to find what the most extreme value is from the simluations.
 
     Args:
         observed (array-like): observed values sequence
@@ -811,57 +725,33 @@ def ResampleChiSquare(observed, expected, iters=1000):
     """
     observed, expected = np.array(observed), np.array(expected)
     
-    # Check that sum of values are euqal
     if np.isclose(sum(observed), sum(expected)) == False:
         raise ValueError('The sum of the values for observed and expected must be equal.')
     
-    # Calculate the chi square test statistic
     test_chi = sum((observed - expected)**2 / expected)
         
-    # Calculate the variables needed for resampling
-    n = sum(expected)
+    n = sum(observed)
     values = list(range(len(expected)))
     p_exp = expected/sum(expected)
     
-    # Build the chi square sampling distribution for the null hypothesis
     chis=[]
     for _ in range(iters):
-        # Build a model_observed sequence generated by resampling using expected probabilities
-        hist = Counter({x:0 for x in values})
+        hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
         hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
         sorted_hist = sorted(hist.items())
         model_observed = np.array([x[1] for x in sorted_hist])
-
-        # Compute chi square statistic and append
         chi = sum((model_observed - expected)**2 / expected)
         chis.append(chi)
     
     return test_chi, np.array(chis)
 
 
-def ChiSquareContribution(obs, exp):
-    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
-    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
-
-    Args:
-        obs (array-like): The observed frequency array
-        exp (array-like): The expected frequency array
-
-    Returns:
-        array: Chi square contribution array
-    """
-    obs_array = np.array(obs)
-    exp_array = np.array(exp)
-    
-    return (obs_array - exp_array)**2/exp_array
-
-
-def SummarizeEstimates(estimates, conf_int=0.95):
+def SummarizeEstimates(estimates, alpha=0.95):
     """Computes the mean, standard deviation (std error), and a confidence interval for a sampling distribution (estimates).
 
     Args:
         estimates (array-like): A sequence of estimates for a statistic obtained from resampling (sampling distribution)
-        conf_int (float): Probability for the confidence interval. Must be between 0 and 1. Defaults to 0.95.
+        alpha (float): Probability for the confidence interval. Must be between 0 and 1. Defaults to 0.95.
 
     Returns:
         mean: mean value of the estimates
@@ -869,7 +759,7 @@ def SummarizeEstimates(estimates, conf_int=0.95):
         confidence interval: interval about the median of the distribution
     """
     rv = DiscreteRv(estimates)
-    return np.mean(estimates), np.std(estimates), rv.interval(conf_int)
+    return np.mean(estimates), np.std(estimates), rv.interval(alpha)
 
 
 def PvalueFromEstimates(estimates, test_statistic, tail='right'):
@@ -893,53 +783,6 @@ def PvalueFromEstimates(estimates, test_statistic, tail='right'):
         raise Exception('The value of \'tail\' can only be either \'left\' or \'right\'')
     
     return pvalue
-
-
-def PowerDiffMeans(a, b, alpha = 0.05, num_runs=1000):
-    """Calculates power for the difference in means between two groups. 
-    This is done by resampling each group to simulate sampling the population, 
-    then pooling and shuffling the data to simulate the null hypothesis in each run. 
-    The calculation is a two-sided test (using absolute value of the test statistic). 
-    The equivalent in statsmodels is sms.TTestIndPower().
-
-    Args:
-        a (array-like): group 1
-        b (array-like): group 2
-        alpha (float, optional): Significance level used. Defaults to 0.05.
-        num_runs (int, optional): [description]. Defaults to 1000.
-
-    Returns:
-        float: power
-    """
-    a = np.array(a)
-    b = np.array(b)
-    count = 0
-    
-    for _ in range(num_runs):
-        sample1 = np.random.choice(a, size=len(a), replace=True)
-        sample2 = np.random.choice(b, size=len(b), replace=True)
-            
-        pooled_data = np.hstack((sample1, sample2))
-        sample1_size=len(sample1)
-            
-        diff_means = abs(sample1.mean() - sample2.mean())
-        
-        diff_mean_results = []
-
-        for _ in range(100):
-            np.random.shuffle(pooled_data)
-            group1 = pooled_data[:sample1_size]
-            group2 = pooled_data[sample1_size:]
-            result = abs(group1.mean() - group2.mean())
-            diff_mean_results.append(result)
-                  
-        rv = DiscreteRv(diff_mean_results)
-            
-        p_value = 1 - rv.cdf(diff_means)
-        if p_value > alpha:
-            count += 1
-    
-    return 1 - count / num_runs
 
 
 def VariableMiningOLS(df, y):
@@ -1171,7 +1014,7 @@ class HypothesisTest(object):
         """
         self.data = data
         self.MakeModel()
-        self.actual = self.TestStatistic(data) # pylint: disable=assignment-from-no-return
+        self.actual = self.TestStatistic(data)
         self.test_stats = None
         self.rv = None
 
@@ -1202,7 +1045,7 @@ class HypothesisTest(object):
             plt.plot([x, x], [0, 1], color='0.8')
 
         VertLine(self.actual)
-        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk)) # pylint: disable=no-member
+        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk))
 
     def TestStatistic(self, data):
         """Computes the test statistic.
@@ -1280,7 +1123,7 @@ class HTCorrelationPermute(HypothesisTest):
         return xs, ys
 
 
-class HTChiSquare(HypothesisTest):
+class HTChiSquaredTest(HypothesisTest):
     '''Represents a hypothesis test for two sequences, observed and expected. 
     Pass the sequences as arrays. 
     The sequences must be the same length, be integer counts of a categorical variable 
