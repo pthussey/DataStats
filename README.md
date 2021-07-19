@@ -1,5 +1,5 @@
 # DataStatsAnalysis
- A statistics module containing useful functions I wrote while going through the ThinkStats book.
+ A statistics module containing useful functions and classes I am writing while going through the ThinkStats book.
 
 I am writing this dataStatsAnaylsis.py module because I want to have a tool box of data analysis / statistical functions to use in my work after finishing the ThinkStats book.
 
