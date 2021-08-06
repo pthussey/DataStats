@@ -803,7 +803,7 @@ def ResampleChiSquare(observed, expected, iters=1000):
     Args:
         observed (array-like): observed values sequence
         expected (array-like): expected values sequence
-        iters (int, optional): [description]. Defaults to 1000.
+        iters (int, optional): Number of iterations to run when building distribution. Defaults to 1000.
 
     Returns:
         test_chi: Original actual chi squared value
@@ -811,7 +811,7 @@ def ResampleChiSquare(observed, expected, iters=1000):
     """
     observed, expected = np.array(observed), np.array(expected)
     
-    # Check that sum of values are euqal
+    # Check that sum of values are equal
     if np.isclose(sum(observed), sum(expected)) == False:
         raise ValueError('The sum of the values for observed and expected must be equal.')
     
@@ -836,6 +836,50 @@ def ResampleChiSquare(observed, expected, iters=1000):
         chi = sum((model_observed - expected)**2 / expected)
         chis.append(chi)
     
+    return test_chi, np.array(chis)
+
+
+def ResampleChiSquareContingency(observed, iters=1000):
+    """Generates a chisquared statistic sampling distribution 
+    from a contingency table. 
+    Can then make an rv of this distribution to plot cdf and  
+    compute a p-value for the actual chi-squared statistic (eg. rv.cdf at actual statistic (test_chi)). 
+    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
+
+    Args:
+        observed (array-like): observed contingency table
+        iters (int, optional): Number of iterations to run when building distribution. Defaults to 1000.
+
+    Returns:
+        test_chi: Original actual chi squared value
+        chis (array): Sampling distribution for the null hypothesis obtained from resampling
+    """
+    # Put the data into array form
+    observed = np.asarray(observed, dtype=np.float64)
+    
+    # Calculate the test chi square statistic and the expected array
+    test_chi,_,_,expected = stats.chi2_contingency(observed)
+    
+    # Calculate variables to be used in resampling
+    expected = np.asarray(expected, dtype=np.float64)
+    expected_shape = expected.shape
+    expected_ps = expected / np.sum(expected)
+    values = np.array(list(range(len(expected.ravel())))) # Flatten the array and then reshape it later
+    n= int(np.sum(expected))
+      
+    # Compute resampled expected values and compute chi square 
+    # to build a sampling distribution that represents the null hypothesis
+    chis=[]
+    for _ in range(iters):
+        hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
+        hist.update(np.random.choice(values, size=n, replace=True, p=expected_ps.ravel()))
+        sorted_hist = sorted(hist.items())
+        resampled_expected = np.array([x[1] for x in sorted_hist])
+        resampled_expected_reshaped = resampled_expected.reshape(expected_shape) # Put back into original shape
+
+        chi = stats.chi2_contingency(resampled_expected_reshaped)[0]
+        chis.append(chi)
+
     return test_chi, np.array(chis)
 
 
@@ -1118,7 +1162,7 @@ class HypothesisTest(object):
     The largest test statistic seen in the simulations is given by MaxTestStat()."""
 
     def __init__(self, data):
-        """Initializes.
+        """Initializes the hypothesis test.
 
         data: data in whatever form is relevant
         """
@@ -1504,7 +1548,7 @@ class PTCorrelationHa(PowerTest):
         return test_stat, rv
 
 
-class PTChiSquareH0(PowerTest):
+class PTChiSquare(PowerTest):
     """Calculates the power of a chi square hypothesis test 
     using resampling of the expected sequence to simulate the null hypothesis 
     and build the null hypothesis sampling distribution. 
@@ -1516,7 +1560,7 @@ class PTChiSquareH0(PowerTest):
         self.expected = np.array(self.expected)
     
     def ComputeRVandTestStat(self):
-        # Create run data by resampling the observed sequence (assuming the alternative hypothesis)
+        # Create run data (run_observed) by resampling the observed sequence (assuming the alternative hypothesis)
         n = sum(self.observed)
         values_obs = list(range(len(self.observed)))
         p_obs = self.observed/sum(self.observed)
@@ -1526,12 +1570,12 @@ class PTChiSquareH0(PowerTest):
         sorted_hist = sorted(hist.items())
         run_observed = np.array([x[1] for x in sorted_hist])
         
-        # Calculate test_stat for the run data using the observed sequence (alternative hypothesis)
+        # Calculate chi square test_stat for the run data
         test_stat = sum((run_observed - self.expected)**2 / self.expected)
         
         chis = []
         
-        # Build a chi sqaure sampling distribution for the run using the expected sequence (null hypothesis)
+        # Build a chi square sampling distribution for the run using the expected sequence (null hypothesis)
         for _ in range(100):
             n = sum(self.expected)
             values = list(range(len(self.expected)))
@@ -1539,51 +1583,6 @@ class PTChiSquareH0(PowerTest):
             
             hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
             hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
-            sorted_hist = sorted(hist.items())
-            model_observed = np.array([x[1] for x in sorted_hist])
-            chi = sum((model_observed - self.expected)**2 / self.expected)
-            chis.append(chi)
-        
-        rv = DiscreteRv(chis)
-        
-        return test_stat, rv
-
-
-class PTChiSquareHa(PowerTest):
-    """Calculates the power of a chi square hypothesis test 
-    using resampling of the observed sequence to simulate the alternative hypothesis 
-    and build the alternative hypothesis sampling distribution. 
-    Takes data in the form of two sequences: data = observed, expected
-    """    
-    def PrepareData(self):
-        self.observed, self.expected = self.data
-        self.observed = np.array(self.observed)
-        self.expected = np.array(self.expected)
-    
-    def ComputeRVandTestStat(self):
-        # Create run data by resampling the expected sequence (assuming the null hypothesis)
-        n = sum(self.expected)
-        values_exp = list(range(len(self.expected)))
-        p_exp = self.expected/sum(self.expected)
-        
-        hist = Counter({x:0 for x in values_exp})
-        hist.update(np.random.choice(values_exp, size=n, replace=True, p=p_exp))
-        sorted_hist = sorted(hist.items())
-        run_observed = np.array([x[1] for x in sorted_hist])
-        
-        # Calculate test_stat for the run data (assuming the null hypothesis)
-        test_stat = sum((run_observed - self.expected)**2 / self.expected)
-        
-        chis = []
-        
-        # Build a chi square sampling distribution for the run using the observed sequence (alternative hypothesis)
-        for _ in range(100):
-            n = sum(self.observed)
-            values = list(range(len(self.observed)))
-            p_obs = self.observed/sum(self.observed)
-            
-            hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
-            hist.update(np.random.choice(values, size=n, replace=True, p=p_obs))
             sorted_hist = sorted(hist.items())
             model_observed = np.array([x[1] for x in sorted_hist])
             chi = sum((model_observed - self.expected)**2 / self.expected)
