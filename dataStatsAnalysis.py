@@ -1593,6 +1593,55 @@ class PTChiSquare(PowerTest):
         return test_stat, rv
 
 
+class PTChiSquareContingency(PowerTest):
+    """Calculates the power of a chi square contingency table hypothesis test 
+    using resampling of the expected sequence to simulate the null hypothesis 
+    and build the null hypothesis sampling distribution. 
+    Takes data in the form of a single observed contingency table (array-like)
+    """    
+    def PrepareData(self):
+        self.observed = self.data
+        self.observed = np.array(self.observed)
+    
+    def ComputeRVandTestStat(self):
+        # Create run data (resampled_observed_reshaped) by resampling the observed data (assuming the alternative hypothesis)    
+        observed_shape = self.observed.shape
+        observed_ps = self.observed / np.sum(self.observed)
+        values = np.array(list(range(len(self.observed.ravel())))) # Flatten the array and then reshape it later
+        n= int(np.sum(self.observed))
+        
+        hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
+        hist.update(np.random.choice(values, size=n, replace=True, p=observed_ps.ravel()))
+        sorted_hist = sorted(hist.items())
+        resampled_observed = np.array([x[1] for x in sorted_hist])
+        resampled_observed_reshaped = resampled_observed.reshape(observed_shape) # Put back into original shape
+        
+        # Calculate chi square test_stat and expected contingency table from the run data
+        test_stat,_,_,expected = stats.chi2_contingency(resampled_observed_reshaped)
+        
+        chis = []
+        
+        # Build a chi square sampling distribution for the run using the expected sequence (null hypothesis)
+        for _ in range(100):
+            expected_shape = expected.shape
+            expected_ps = expected / np.sum(expected)
+            values = np.array(list(range(len(expected.ravel())))) # Flatten the array and then reshape it later
+            n= int(np.sum(expected))
+            
+            hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
+            hist.update(np.random.choice(values, size=n, replace=True, p=expected_ps.ravel()))
+            sorted_hist = sorted(hist.items())
+            resampled_expected = np.array([x[1] for x in sorted_hist])
+            resampled_expected_reshaped = resampled_expected.reshape(expected_shape) # Put back into original shape
+
+            chi = stats.chi2_contingency(resampled_expected_reshaped)[0]
+            chis.append(chi)
+        
+        rv = dsa.DiscreteRv(chis)
+        
+        return test_stat, rv
+
+
 def DollarThousandsFormat(value):
     """Formats a value into dollars with a thousands separator. Absolute value applied.
 
