@@ -1305,7 +1305,7 @@ class HTChiSquare(HypothesisTest):
 
 class PowerTest():
     """Power test superclass. 
-    All child classes must provide PrepareData and ComputeRVandTestStat methods.
+    All child classes must provide PrepareData and ComputeTestStatandRv methods.
     """
     
     def __init__(self, data, alpha=0.05, alternative='two-sided', num_runs=1000):
@@ -1325,13 +1325,13 @@ class PowerTest():
     # This involves doing one resample to simulate pulling an additional sample from the population,
     # then calculating the test_stat, building a sampling distribution, and computing the rv
     # See child classes for examples
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         UnimplementedMethodException()
     
     # Computes the pvalue of test stat from an rv,
     # and adds to pvalue_count if less than significance level
     def _RunPvalueCount(self):
-        test_stat, rv = self.ComputeRVandTestStat() # pylint: disable=assignment-from-no-return
+        test_stat, rv = self.ComputeTestStatandRv() # pylint: disable=assignment-from-no-return
         
         p_value_right = 1 - rv.cdf(test_stat)
         p_value_left = rv.cdf(test_stat)
@@ -1375,7 +1375,7 @@ class PTMean(PowerTest):
     def PrepareData(self):
         self.data = np.array(self.data)
     
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         run_data = np.random.choice(self.data, size=len(self.data), replace=True)
         mean_estimates = [np.random.choice(run_data, size=len(run_data), replace=True).mean() for _ in range(100)]
         
@@ -1397,7 +1397,7 @@ class PTDiffMeansH0(PowerTest):
         self.pooled_data = np.hstack((self.a, self.b))
         self.a_size = len(self.a)
     
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         # Create run data by resampling the two groups
         sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
         sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
@@ -1436,7 +1436,7 @@ class PTDiffMeansHa(PowerTest):
         self.a = np.array(self.a)
         self.b = np.array(self.b)
     
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         # Create run data
         sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
         sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
@@ -1471,7 +1471,7 @@ class PTCorrelationH0(PowerTest):
         self.y = np.array(self.y)
         self.df = pd.DataFrame({'x':self.x, 'y': self.y})
     
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         # Create run data
         run_data = self.df.sample(n=len(self.df), replace=True)
         run_x = run_data.x.values
@@ -1520,7 +1520,7 @@ class PTCorrelationHa(PowerTest):
         self.x, self.y = self.data
         self.df = pd.DataFrame({'x':self.x, 'y': self.y})
     
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         # Create run data
         run_data = self.df.sample(n=len(self.df), replace=True)
         
@@ -1559,7 +1559,7 @@ class PTChiSquare(PowerTest):
         self.observed = np.array(self.observed)
         self.expected = np.array(self.expected)
     
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         # Create run data (run_observed) by resampling the observed sequence (assuming the alternative hypothesis)
         n = sum(self.observed)
         values_obs = list(range(len(self.observed)))
@@ -1603,7 +1603,7 @@ class PTChiSquareContingency(PowerTest):
         self.observed = self.data
         self.observed = np.array(self.observed)
     
-    def ComputeRVandTestStat(self):
+    def ComputeTestStatandRv(self):
         # Create run data (resampled_observed_reshaped) by resampling the observed data (assuming the alternative hypothesis)    
         observed_shape = self.observed.shape
         observed_ps = self.observed / np.sum(self.observed)
@@ -1637,7 +1637,7 @@ class PTChiSquareContingency(PowerTest):
             chi = stats.chi2_contingency(resampled_expected_reshaped)[0]
             chis.append(chi)
         
-        rv = dsa.DiscreteRv(chis)
+        rv = DiscreteRv(chis)
         
         return test_stat, rv
 
