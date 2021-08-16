@@ -1,0 +1,28 @@
+* Edit my alternative hypothesis resampling functions to remove the part about doubling
+  - Can only calculate onesided for values more extreme than the provided null hypothesis test stat
+
+* Check again how my power tests handle the alternative cases
+  - Don't they have both one and two-sided?
+
+* Change my power tests to actually use my hypothesis test classes
+  - Could the power tests be added to the hypothesis tests as a class method? - yes
+    Is it even possible to call a class within itself? - yes
+  - Still need to figure out how to deal with the onsided parameter
+    This can probably be addressed using an if statement
+  - Also still need to create a superclass method placeholder
+  - Also need to test the test_stat thing
+  - Could also try this a different way as below:  
+    Probably don't have to call the class within itself, just the functions like ComputeRv
+    The power test method would have to do the first part of simulating resampling from the population, 
+    and then run the hypothesis test.
+    This would then need to be repeated to calculate power of the test.
+
+* I think I should just get rid of my alternative hypothesis and power tests.
+  - These just complicate things and are really overkill
+  - But what about the one-sample mean case?
+    I don't think there is a way to do this one other than alternative
+
+* Need to also consider whether or not my original resampling functions should really return a test_stat.
+  - It doesn't seem like it really is a test_stat in the alternative hypothesis case
+  - It is actually just the original data statistic
+  - Is this really needed?

@@ -586,7 +586,7 @@ def ResampleInterSlope(x, y, iters=1000):
     return np.array(inters), np.array(slopes), fys_seq
 
 
-def ResampleDiffMeans_H0(a, b, iters=1000, onesided=False):
+def ResampleDiffMeansH0(a, b, iters=1000, onesided=False):
     """Generates a difference in means sampling distribution for the null hypothesis that two groups are the same via permutation (randomized shuffling) of pooled data. 
     Can then make an rv of this distribution to plot the cdf and compute the p-value of of the actual difference (eg. rv.cdf at the actual difference). 
     Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
@@ -636,7 +636,7 @@ def ResampleDiffMeans_H0(a, b, iters=1000, onesided=False):
     return test_diff, np.array(diff_mean_results)
 
 
-def ResampleDiffMeans_Ha(a, b, iters=1000):
+def ResampleDiffMeansHa(a, b, iters=1000):
     """Generates a difference in means sampling distribution for the alternative hypothesis that two groups differ via resampling of each group. 
     In this case the resampling is done on each sample separately. 
     (ie. assuming the alternative hypothesis that the samples are different) 
@@ -670,7 +670,7 @@ def ResampleDiffMeans_Ha(a, b, iters=1000):
     return test_diff, np.array(diff_mean_results)
 
 
-def ResampleCorrelation_H0(x, y, iters=1000, onesided=False, method='pearson'):
+def ResampleCorrelationH0(x, y, iters=1000, onesided=False, method='pearson'):
     """Generates a correlation sampling distribution for the null hypothesis of no correlation between the variables via permutation of one of the variables. 
     Can then make an rv of this distribution to plot cdf, compute p-value for the actual correlation value (eg. rv.cdf at actual correlation(test_r)). 
     Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
@@ -738,7 +738,7 @@ def ResampleCorrelation_H0(x, y, iters=1000, onesided=False, method='pearson'):
     return test_r, np.array(corrs)
 
 
-def ResampleCorrelation_Ha(x, y, iters=1000, method='pearson'):
+def ResampleCorrelationHa(x, y, iters=1000, method='pearson'):
     """Generates a correlation sampling distribution for the alternative hypothesis of correlation existing between the variables. 
     This is done by resampling x, y pairs and calculating correlation on new samples. 
     Can then make an rv of this distribution to calculate sampling distribution mean, std deviation (std error), and confidence interval (rv.interval). 
@@ -916,7 +916,7 @@ def SummarizeEstimates(estimates, conf_int=0.95):
     return np.mean(estimates), np.std(estimates), rv.interval(conf_int)
 
 
-def PvalueFromEstimates(estimates, test_statistic, tail='right'):
+def PValueFromEstimates(estimates, test_statistic, tail='right'):
     """Generates a pvalue from a sampling distribution (sequence of estimates) for a given test statistic.
 
     Args:

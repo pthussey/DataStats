@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+import scipy.stats as stats
 
 
 # Sets the default rc parameters for plotting
@@ -34,8 +35,8 @@ def SetParams(font='Malgun Gothic', basesize=12, basecolor='0.4', style='seaborn
     plt.rcParams["axes.edgecolor"] = basecolor
     plt.rcParams["xtick.color"] = basecolor
     plt.rcParams["ytick.color"] = basecolor
-    plt.rcParams["ytick.left"]: True
-    plt.rcParams["xtick.bottom"]: True
+    plt.rcParams["ytick.left"] = True
+    plt.rcParams["xtick.bottom"] = True
     plt.rcParams["axes.labelpad"] = basesize
     plt.rcParams['axes.unicode_minus'] = False if font == 'Malgun Gothic' else True
 
@@ -44,7 +45,7 @@ def Despine(ax, spines='topright'):
     """Removes the spines surrounding a plot.
 
     Args:
-        ax ([type]): The designated axis.
+        ax: The designated axis. If using seaborn save the plot to an axis variable. ex) g = sns.lineplot()
         spines (str, optional): Can choose 'all' or 'toprightleft'. Defaults to 'topright'.
     """
     if spines == 'all':
@@ -61,6 +62,22 @@ def Despine(ax, spines='topright'):
     else:
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
+
+
+def RemoveGridSpinesAxes(ax):
+    """Removes grid, spines, and axes to leave just the plot itself.
+
+    Args:
+        ax: The designated axis. If using seaborn save the plot to an axis variable. ex) g = sns.lineplot()
+    """
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.tick_params(axis='both', length=0.0)
+    ax.grid(b=False)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
 
 
 def AnnotateBars(rects, color='0.4', orient='v', offset=3, weight='normal', fontsize=12, digits=0, percent=False):
@@ -271,7 +288,7 @@ def AnnotateLine(xs, ys, color='0.4', weight='normal', fontsize=12, offset=10, d
                         AnnotatePointRight(coord, color=color,
                                            weight=weight, fontsize=fontsize,
                                            offset=offset, digits=digits)
-                        
+                
                 elif (d[k-1][1] >= d[k][1]) & (int_angle >= 0): # Incoming line slopes down and interior angle is positive
                     if abs(np.degrees(out_hangle)) < 26: # Angle between outgoing line and horizontal is small
                         print(3, k, np.degrees(out_hangle))
@@ -282,6 +299,104 @@ def AnnotateLine(xs, ys, color='0.4', weight='normal', fontsize=12, offset=10, d
                         AnnotatePointRight(coord, color=color,
                                            weight=weight, fontsize=fontsize,
                                            offset=offset, digits=digits)
+                
+                else:
+                    if abs(np.degrees(out_hangle)) < 26: # Angle between outgoing line and horizontal is small
+                        print(3, k, np.degrees(out_hangle))
+                        AnnotatePointBelow(coord, color=color, ha='left',
+                                           weight=weight, fontsize=fontsize,
+                                           offset=offset, digits=digits)
+                    else:
+                        AnnotatePointLeft(coord, color=color,
+                                           weight=weight, fontsize=fontsize,
+                                           offset=offset, digits=digits)
+
+
+def CdfPlot(data, test_stat=None, mean=False, median=False, CI=False, conf_int=0.95):
+    """Plots a cdf for supplied data.
+
+    Args:
+        data (array-like): Data to be plotted. Needs to be a one-dimensional sequence.
+        test_stat (float, optional): Test stat to plot. Defaults to None.
+        mean (bool, optional): If True plots a line at the mean. Defaults to False.
+        median (bool, optional): If True plots a line at the median. Defaults to False.
+        CI (bool, optional): If True plots lines for the confidence interval. Defaults to False.
+        conf_int (float, optional): Sets the range for the confidence interval. Defaults to 0.95.
+    """
+    # Compute an rv for the data
+    val,cnt = np.unique(data, return_counts=True)
+    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
+
+    # Set up figure (single plot)
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+
+    # Plot cdf of the rv computed above
+    # Can include an orange line for the mean, a green line for the median, 
+    # purple lines for the CI, and red lines for the test stat
+    ax.plot(rv.xk, rv.cdf(rv.xk), lw=2.0, label='cdf') # pylint: disable=no-member
+        
+    if test_stat != None:
+        ax.axvline(test_stat, color='C3', lw=1.3, label='test stat') # test_stat vertical, red line
+        ax.axhline(rv.cdf(test_stat), color='C3', lw=1.3) # test_stat horizontal, red line
+    
+    if mean:
+        ax.axvline(rv.mean(), color='C1', lw=1.3, label='mean') # mean, orange line
+    
+    if median:
+        ax.axvline(rv.median(), color='C2', lw=1.3, label='median') # median, green line
+    
+    if CI:
+        ax.axvline(rv.interval(conf_int)[0], color='C4', lw=1.3, label='CI') # CI lower, purple line
+        ax.axvline(rv.interval(conf_int)[1], color='C4', lw=1.3) # CI upper, purple line
+    
+    ax.legend(bbox_to_anchor=(1.05, 1))
+
+
+def KdePlot(data, test_stat=None, bw_adjust=None, clip=None, mean=False, median=False):
+    """Plots a kde for supplied data.
+
+    Args:
+        data (array-like): Data to be plotted. Needs to be a one-dimensional sequence.
+        test_stat (float, optional): Test stat to plot. Defaults to None.
+        bw_adjust (float, optional): Adjusts the bandwidth for the kde. Defaults to None.
+        clip (tuple, optional): Clips the data at the values given in the tuple. Defaults to None.
+        mean (bool, optional): If True plots a line at the mean. Defaults to False.
+        median (bool, optional): If True plots a line at the median. Defaults to False.
+    """
+    # Convert to an array
+    data = np.asarray(data)
+
+    # Set up figure (single plot)
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+
+    # Plot kde of the data
+    # Can include an orange line for the mean, 
+    # a green line for the median, 
+    # and a red line for the test stat
+    if (bw_adjust != None) and (clip != None):
+        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust, clip=clip)
+    
+    elif (bw_adjust == None) and (clip != None):
+        sns.kdeplot(data, lw=2, clip=clip)
+    
+    elif (bw_adjust != None) and (clip == None):
+        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust)
+    
+    else:
+        sns.kdeplot(data, lw=2)
+        
+    if test_stat != None:
+        ax.axvline(test_stat, color='C3', lw=1.3, label='test stat') # test_stat vertical, red line
+    
+    if mean:
+        ax.axvline(np.mean(data), color='C1', lw=1.3, label='mean') # mean, orange line
+    
+    if median:
+        ax.axvline(np.median(data), color='C2', lw=1.3, label='median') # median, green line
+    
+    ax.legend(bbox_to_anchor=(1.25, 1))
 
 
 def main():
