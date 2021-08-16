@@ -17,6 +17,8 @@
     and then run the hypothesis test.
     This would then need to be repeated to calculate power of the test.
 
+* Should I mark some of my hypothesis test functions as private (single underbar in front)?
+
 * I think I should just get rid of my alternative hypothesis and power tests.
   - These just complicate things and are really overkill
   - But what about the one-sample mean case?
