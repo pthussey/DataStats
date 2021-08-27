@@ -4,18 +4,28 @@
 * Check again how my power tests handle the alternative cases
   - Don't they have both one and two-sided?
 
+* Could the tail parameter be removed and instead be inferred somehow instead in my hypothesis tests?
+  - Maybe could use the location of the average of the sampling disribution in comparison to the test stat?
+
 * Change my power tests to actually use my hypothesis test classes
   - Could the power tests be added to the hypothesis tests as a class method? - yes
     Is it even possible to call a class within itself? - yes
   - Still need to figure out how to deal with the onsided parameter
     This can probably be addressed using an if statement
-  - Also still need to create a superclass method placeholder
-  - Also need to test the test_stat thing
+  - Also still need to create a superclass method placeholder - done
+  - Check that attributes like test_stat and rv do not change after running Power() method
+  - Write up documentation for the classes including lists of attributes and methods
+  - Mention in documentation for superclass that this class itself is not meant to be used, must use subclasses
   - Could also try this a different way as below:  
     Probably don't have to call the class within itself, just the functions like ComputeRv
     The power test method would have to do the first part of simulating resampling from the population, 
     and then run the hypothesis test.
     This would then need to be repeated to calculate power of the test.
+
+* I think I can just get rid of my resampling functions too
+  - Check that the same sampling distributions can be returned from my hypothesis test classes
+  - If not then could make the sampling distribution an attribute of the class
+  - This could be done by returning the rv and the sampling distribution from the ComputeRv functions
 
 * Should I mark some of my hypothesis test functions as private (single underbar in front)?
 
