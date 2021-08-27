@@ -1,0 +1,486 @@
+class HypothesisTest(object):
+    """Represents a hypothesis test. 
+    The actual test statistic for the data is available through a .actual attribute. 
+    After PValue is run the scipy stats random variable for the sampling distribution is available through a .rv attribute. 
+    The cdf of the distribution along with a line representing the test statistic value can be plotted using PlotCdf(). 
+    The largest test statistic seen in the simulations is given by MaxTestStat()."""
+
+    def __init__(self, data):
+        """Initializes the hypothesis test.
+
+        data: data in whatever form is relevant
+        """
+        self.data = data
+        self.MakeModel()
+        self.actual = self.TestStatistic(data) # pylint: disable=assignment-from-no-return
+        self.test_stats = None
+        self.rv = None
+
+    def PValue(self, iters=1000):
+        """Computes the distribution of the test statistic and p-value.
+
+        iters: number of iterations
+
+        returns: float p-value
+        """
+        self.test_stats = [self.TestStatistic(self.RunModel())
+                           for _ in range(iters)]
+        self.rv = DiscreteRv(self.test_stats)
+
+        count = sum(1 for x in self.test_stats if x >= self.actual)
+        return count / iters
+
+    def MaxTestStat(self):
+        """Returns the largest test statistic seen during simulations.
+        """
+        return max(self.test_stats)
+
+    def PlotCdf(self, label=None):
+        """Draws a Cdf with vertical lines at the observed test stat.
+        """      
+        def VertLine(x):
+            """Draws a vertical line at x."""
+            plt.plot([x, x], [0, 1], color='0.8')
+
+        VertLine(self.actual)
+        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk)) # pylint: disable=no-member
+
+    def TestStatistic(self, data):
+        """Computes the test statistic.
+
+        data: data in whatever form is relevant        
+        """
+        raise UnimplementedMethodException()
+
+    def MakeModel(self):
+        """Build a model of the null hypothesis.
+        """
+        pass
+
+    def RunModel(self):
+        """Run the model of the null hypothesis.
+
+        returns: simulated data
+        """
+        raise UnimplementedMethodException()
+
+
+class HTDiffMeansPermute(HypothesisTest):
+
+    def TestStatistic(self, data):
+        group1, group2 = data
+        test_stat = abs(group1.mean() - group2.mean())
+        return test_stat
+
+    def MakeModel(self):
+        group1, group2 = self.data
+        self.n, self.m = len(group1), len(group2)
+        self.pool = np.hstack((group1, group2))
+
+    def RunModel(self):
+        np.random.shuffle(self.pool)
+        data = self.pool[:self.n], self.pool[self.n:]
+        return data
+
+
+class HTDiffMeansPermuteOneSided(HTDiffMeansPermute):
+
+    def TestStatistic(self, data):
+        group1, group2 = data
+        test_stat = group1.mean() - group2.mean()
+        return test_stat
+
+
+class HTDiffMeansRandom(HTDiffMeansPermute):
+    '''Tests a difference in means using resampling.'''
+
+    def RunModel(self):
+        group1 = np.random.choice(self.pool, self.n, replace=True)
+        group2 = np.random.choice(self.pool, self.m, replace=True)
+        return group1, group2
+
+
+class HTDiffStdPermute(HTDiffMeansPermute):
+
+    def TestStatistic(self, data):
+        group1, group2 = data
+        test_stat = group1.std() - group2.std()
+        return test_stat
+
+
+class HTCorrelationPermute(HypothesisTest):
+
+    def TestStatistic(self, data):
+        xs, ys = data
+        test_stat = abs(stats.pearsonr(xs, ys)[0])
+        return test_stat
+
+    def RunModel(self):
+        xs, ys = self.data
+        xs = np.random.permutation(xs)
+        return xs, ys
+
+
+class HTChiSquare(HypothesisTest):
+    '''Represents a hypothesis test for two sequences, observed and expected. 
+    Pass the sequences as arrays. 
+    The sequences must be the same length, be integer counts of a categorical variable 
+    and have the sum of the sequence values must be the same. 
+    If the sum of the sequence values is different, first normalize the expected values 
+    and then create a new expected values sequence by multiplying by the total number of observed values. 
+    adjust_expected = expected/sum(expected)*sum(observed)'''
+    
+    def TestStatistic(self, data):
+        observed, expected = data
+        test_stat = sum((observed - expected)**2 / expected)
+        return test_stat
+
+    def RunModel(self):
+        observed, expected = self.data
+        n = sum(observed)
+        values = list(range(len(expected)))
+        p_exp = expected/sum(expected)
+        hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
+        hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
+        sorted_hist = sorted(hist.items())
+        model_observed = np.array([x[1] for x in sorted_hist])
+        return model_observed, expected
+
+
+class PowerTest():
+    """Power test superclass. 
+    All child classes must provide PrepareData and ComputeTestStatandRv methods.
+    """
+    
+    def __init__(self, data, alpha=0.05, alternative='two-sided', num_runs=1000):
+        self.data = data
+        self.alpha = alpha
+        self.alternative = alternative
+        self.num_runs = num_runs
+        self.PrepareData()
+    
+    # Provide functionality to convert the data into format needed for use in BuildRv
+    # Ex. Convert to array, split data into component groups, etc.
+    # See child classes for examples
+    def PrepareData(self):
+        UnimplementedMethodException()
+    
+    # Provide functionality that creates the run data and then computes the run's test stat and rv
+    # This involves doing one resample to simulate pulling an additional sample from the population,
+    # then calculating the test_stat, building a sampling distribution, and computing the rv
+    # See child classes for examples
+    def ComputeTestStatandRv(self):
+        UnimplementedMethodException()
+    
+    # Computes the pvalue of test stat from an rv,
+    # and adds to pvalue_count if less than significance level
+    def _RunPvalueCount(self):
+        test_stat, rv = self.ComputeTestStatandRv() # pylint: disable=assignment-from-no-return
+        
+        p_value_right = 1 - rv.cdf(test_stat)
+        p_value_left = rv.cdf(test_stat)
+        
+        # Two-sided test
+        if self.alternative == 'two-sided':
+            if (p_value_right < self.alpha/2) or (p_value_left < self.alpha/2):
+                self.pvalue_count+= 1
+        
+        # One-sided test using the right side of the distribution
+        elif self.alternative == 'right': 
+            if p_value_right < self.alpha:
+                self.pvalue_count += 1
+        
+        # One-sided test using the left side of the distribution
+        elif self.alternative == 'left': 
+            if p_value_left < self.alpha:
+                self.pvalue_count += 1
+        
+        else:
+            raise ValueError("alternative has to be 'two-sided', 'right', or 'left")
+    
+    # Method for computing power 
+    def Power(self):
+        self.pvalue_count = 0
+        for _ in range(self.num_runs):
+            self._RunPvalueCount()
+            
+        return self.pvalue_count / self.num_runs
+
+
+class PTMean(PowerTest):
+    """Calculates the power of a one-sample mean hypothesis test. 
+    A test_stat (eg. zero for no effect) must be provided.
+    """
+    def __init__(self, data, test_stat, alpha=0.05, alternative='two-sided', num_runs=1000):
+        PowerTest.__init__(self, data, alpha, alternative, num_runs)
+        # Alternative hypothesis power tests require a test_stat be provided for null hypothesis (eg. zero for no effect)
+        self.test_stat = test_stat 
+    
+    def PrepareData(self):
+        self.data = np.array(self.data)
+    
+    def ComputeTestStatandRv(self):
+        run_data = np.random.choice(self.data, size=len(self.data), replace=True)
+        mean_estimates = [np.random.choice(run_data, size=len(run_data), replace=True).mean() for _ in range(100)]
+        
+        test_stat = self.test_stat
+        rv = DiscreteRv(mean_estimates)
+        
+        return test_stat, rv
+
+
+class PTDiffMeansH0(PowerTest):
+    """Calculates the power of a difference of means hypothesis test 
+    using permutation of pooled data to simulate the null hypothesis 
+    and build the null hypothesis sampling distribution.
+    """
+    def PrepareData(self):
+        self.a, self.b = self.data
+        self.a = np.array(self.a)
+        self.b = np.array(self.b)
+        self.pooled_data = np.hstack((self.a, self.b))
+        self.a_size = len(self.a)
+    
+    def ComputeTestStatandRv(self):
+        # Create run data by resampling the two groups
+        sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
+        sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
+        
+        # Calculate test_stat for the run data
+        test_stat = sample1.mean() - sample2.mean()
+        
+        diff_mean_results = []
+        
+        # Build a sampling distribution for the run
+        for _ in range(100):
+            np.random.shuffle(self.pooled_data)
+            group1 = self.pooled_data[:self.a_size]
+            group2 = self.pooled_data[self.a_size:]
+            result = group1.mean() - group2.mean()
+            diff_mean_results.append(result)
+        
+        rv = DiscreteRv(diff_mean_results)
+        
+        return test_stat, rv
+
+
+class PTDiffMeansHa(PowerTest):
+    """Calculates the power of a difference of means hypothesis test 
+    using resampling of groups to simulate the alternative hypothesis 
+    and build the alternative hypothesis sampling distribution. 
+    A test_stat (eg. zero for no effect) must be provided.
+    """
+    def __init__(self, data, test_stat, alpha=0.05, alternative='two-sided', num_runs=1000):
+        PowerTest.__init__(self, data, alpha, alternative, num_runs)
+        # Alternative hypothesis power tests require a test_stat be provided for null hypothesis (eg. zero for no effect)
+        self.test_stat = test_stat 
+    
+    def PrepareData(self):
+        self.a, self.b = self.data
+        self.a = np.array(self.a)
+        self.b = np.array(self.b)
+    
+    def ComputeTestStatandRv(self):
+        # Create run data
+        sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
+        sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
+        
+        diff_mean_results = []
+        
+        # Build a sampling distribution for the run
+        for _ in range(100):
+            group1 = np.random.choice(sample1, size=len(sample1), replace=True)
+            group2 = np.random.choice(sample2, size=len(sample2), replace=True)
+            result = group1.mean() - group2.mean()
+            diff_mean_results.append(result)
+        
+        test_stat = self.test_stat
+        rv = DiscreteRv(diff_mean_results)
+        
+        return test_stat, rv
+
+
+class PTCorrelationH0(PowerTest):
+    """Calculates the power of a correlation hypothesis test 
+    using permutation to simulate the null hypothesis of no correlation 
+    and build the null hypothesis sampling distribution.
+    """
+    def __init__(self, data, alpha=0.05, alternative='two-sided', num_runs=1000, method='pearson'):
+        PowerTest.__init__(self, data, alpha, alternative, num_runs)
+        self.method = method
+    
+    def PrepareData(self):
+        self.x, self.y = self.data
+        self.x = np.array(self.x)
+        self.y = np.array(self.y)
+        self.df = pd.DataFrame({'x':self.x, 'y': self.y})
+    
+    def ComputeTestStatandRv(self):
+        # Create run data
+        run_data = self.df.sample(n=len(self.df), replace=True)
+        run_x = run_data.x.values
+        run_y = run_data.y.values
+        
+        corrs=[]
+        
+        # Compute test_stat and build rv for the run
+        if self.method == 'pearson':
+            test_stat = stats.pearsonr(run_x , run_y)[0]
+            
+            for _ in range(100):
+                x_perm = np.random.permutation(run_x)
+                r = stats.pearsonr(x_perm , run_y)[0]
+                corrs.append(r)
+    
+        elif self.method == 'spearman':
+            test_stat = stats.spearmanr(run_x , run_y)[0]
+            
+            for _ in range(100):
+                x_perm = np.random.permutation(run_x)
+                r = stats.spearmanr(x_perm , run_y)[0]
+                corrs.append(r)
+    
+        else:
+            raise Exception('Must enter either pearson or spearman as a string for method argument')   
+        
+        rv = DiscreteRv(corrs)
+        
+        return test_stat, rv
+
+
+class PTCorrelationHa(PowerTest):
+    """Calculates the power of a correlation hypothesis test 
+    using resampling of the paired data to simulate the alternative hypothesis 
+    and build the alternative hypothesis sampling distribution. 
+    A test_stat (eg. zero for no effect) must be provided.
+    """
+    def __init__(self, data, test_stat, alpha=0.05, alternative='two-sided', num_runs=1000, method='pearson'):
+        PowerTest.__init__(self, data, alpha, alternative, num_runs)
+        self.method = method
+        # Alternative hypothesis power tests require a test_stat be provided for null hypothesis (eg. zero for no effect)
+        self.test_stat = test_stat 
+    
+    def PrepareData(self):
+        self.x, self.y = self.data
+        self.df = pd.DataFrame({'x':self.x, 'y': self.y})
+    
+    def ComputeTestStatandRv(self):
+        # Create run data
+        run_data = self.df.sample(n=len(self.df), replace=True)
+        
+        corrs=[]
+        
+        # Build rv
+        if self.method == 'pearson':          
+            for _ in range(100):
+                sample = run_data.sample(n=len(run_data), replace=True)
+                r = stats.pearsonr(sample.x, sample.y)[0]
+                corrs.append(r)
+    
+        elif self.method == 'spearman':            
+            for _ in range(100):
+                sample = run_data.sample(n=len(run_data), replace=True)
+                r = stats.spearmanr(sample.x, sample.y)[0]
+                corrs.append(r)
+    
+        else:
+            raise Exception('Must enter either pearson or spearman as a string for method argument')
+               
+        test_stat = self.test_stat
+        rv = DiscreteRv(corrs)
+        
+        return test_stat, rv
+
+
+class PTChiSquare(PowerTest):
+    """Calculates the power of a chi square hypothesis test 
+    using resampling of the expected sequence to simulate the null hypothesis 
+    and build the null hypothesis sampling distribution. 
+    Takes data in the form of two sequences: data = observed, expected
+    """    
+    def PrepareData(self):
+        self.observed, self.expected = self.data
+        self.observed = np.array(self.observed)
+        self.expected = np.array(self.expected)
+    
+    def ComputeTestStatandRv(self):
+        # Create run data (run_observed) by resampling the observed sequence (assuming the alternative hypothesis)
+        n = sum(self.observed)
+        values_obs = list(range(len(self.observed)))
+        p_obs = self.observed/sum(self.observed)
+        
+        hist = Counter({x:0 for x in values_obs})
+        hist.update(np.random.choice(values_obs, size=n, replace=True, p=p_obs))
+        sorted_hist = sorted(hist.items())
+        run_observed = np.array([x[1] for x in sorted_hist])
+        
+        # Calculate chi square test_stat for the run data
+        test_stat = sum((run_observed - self.expected)**2 / self.expected)
+        
+        chis = []
+        
+        # Build a chi square sampling distribution for the run using the expected sequence (null hypothesis)
+        for _ in range(100):
+            n = sum(self.expected)
+            values = list(range(len(self.expected)))
+            p_exp = self.expected/sum(self.expected)
+            
+            hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
+            hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
+            sorted_hist = sorted(hist.items())
+            model_observed = np.array([x[1] for x in sorted_hist])
+            chi = sum((model_observed - self.expected)**2 / self.expected)
+            chis.append(chi)
+        
+        rv = DiscreteRv(chis)
+        
+        return test_stat, rv
+
+
+class PTChiSquareContingency(PowerTest):
+    """Calculates the power of a chi square contingency table hypothesis test 
+    using resampling of the expected sequence to simulate the null hypothesis 
+    and build the null hypothesis sampling distribution. 
+    Takes data in the form of a single observed contingency table (array-like)
+    """    
+    def PrepareData(self):
+        self.observed = self.data
+        self.observed = np.array(self.observed)
+    
+    def ComputeTestStatandRv(self):
+        # Create run data (resampled_observed_reshaped) by resampling the observed data (assuming the alternative hypothesis)    
+        observed_shape = self.observed.shape
+        observed_ps = self.observed / np.sum(self.observed)
+        values = np.array(list(range(len(self.observed.ravel())))) # Flatten the array and then reshape it later
+        n= int(np.sum(self.observed))
+        
+        hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
+        hist.update(np.random.choice(values, size=n, replace=True, p=observed_ps.ravel()))
+        sorted_hist = sorted(hist.items())
+        resampled_observed = np.array([x[1] for x in sorted_hist])
+        resampled_observed_reshaped = resampled_observed.reshape(observed_shape) # Put back into original shape
+        
+        # Calculate chi square test_stat and expected contingency table from the run data
+        test_stat,_,_,expected = stats.chi2_contingency(resampled_observed_reshaped)
+        
+        chis = []
+        
+        # Build a chi square sampling distribution for the run using the expected sequence (null hypothesis)
+        for _ in range(100):
+            expected_shape = expected.shape
+            expected_ps = expected / np.sum(expected)
+            values = np.array(list(range(len(expected.ravel())))) # Flatten the array and then reshape it later
+            n= int(np.sum(expected))
+            
+            hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
+            hist.update(np.random.choice(values, size=n, replace=True, p=expected_ps.ravel()))
+            sorted_hist = sorted(hist.items())
+            resampled_expected = np.array([x[1] for x in sorted_hist])
+            resampled_expected_reshaped = resampled_expected.reshape(expected_shape) # Put back into original shape
+
+            chi = stats.chi2_contingency(resampled_expected_reshaped)[0]
+            chis.append(chi)
+        
+        rv = DiscreteRv(chis)
+        
+        return test_stat, rv

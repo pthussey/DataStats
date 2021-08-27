@@ -384,7 +384,7 @@ def Jitter(values, jitter=0.5):
 def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
     ''' Calculate a correlation coefficient and a correlation confidence interval (CI) for two variables. 
     Uses a parametric approach to calculate the CI. 
-    A non-parametric CI can be calculated from the results of the ResampleCorrelation_Ha function.
+    A non-parametric CI can be obtained from the rv attribute of the correlation hypothesis test classes.
     
     Args:
         x, y {array-like} -- Input data sets
@@ -515,34 +515,6 @@ def PercentileRows(ys_seq, percents):
     return rows
 
 
-def ResampleMean(data, weights=None, iters=1000):
-    """Uses sampling with replacement to generate a sampling distribution of mean for a variable.
-    Can then make an rv of the sampling distribution to calculate the sampling distribution mean, 
-    std deviation (std error), and confidence interval (rv.interval). 
-    Using the rv, can also plot the cdf and compute the one-sided p-value of a hypothesized mean (eg. rv.cdf at 0). 
-    A two-sided p-value can be obtained by doubling the one-sided p-value if appropriate for the particular case.
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        data (array-like): Data for the variable of interest
-        weights (array-like, optional): Can include weights for the data. Used as DataFrame.sample parameter. Defaults to None.
-        iters (int, optional): The number of resampling iterations. Defaults to 1000.
-
-    Returns:
-        mean_estimates (array): A mean estimates sampling distribution
-    """
-    # Resample with replacement, calculating the mean of the data and building a list of mean estimates
-    if weights is None:   # In case of no weights, use a Series
-        s = pd.Series(data)
-        mean_estimates = [s.sample(n=len(s), replace=True).mean() for _ in range(iters)]
-    
-    else:    # In case of weights use a DataFrame
-        df = pd.DataFrame({'data':data,'wgt':weights})
-        mean_estimates = [df.sample(n=len(df), replace=True, weights=df.wgt).data.mean() for _ in range(iters)]
-    
-    return np.array(mean_estimates)
-
-
 def ResampleInterSlope(x, y, iters=1000):
     """Uses sampling with replacement to generate intercept and slope sampling distributions for two variables of interest.
     Also generates a sequence of fys to be used when adding a CI to a regression plot.
@@ -584,359 +556,6 @@ def ResampleInterSlope(x, y, iters=1000):
         fys_seq.append(fys)
 
     return np.array(inters), np.array(slopes), fys_seq
-
-
-def ResampleDiffMeansH0(a, b, iters=1000, onesided=False):
-    """Generates a difference in means sampling distribution for the null hypothesis that two groups are the same via permutation (randomized shuffling) of pooled data. 
-    Can then make an rv of this distribution to plot the cdf and compute the p-value of of the actual difference (eg. rv.cdf at the actual difference). 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        a (array-like): Input data set 1
-        b (array-like): Input data set 2
-        iters (int): The number of simulations to run (Defaults to 1000)
-        onesided (bool): If set to True a onesided test, that does not use absolute value of difference, is run (Defaults to False) 
-
-    Returns:
-        test_diff: Original actual difference in means value
-        diff_mean_results (array): Sampling distribution for the null hypothesis obtained from resampling
-    """
-    a = np.array(a)
-    b = np.array(b)
-    
-    # Combine the two data sets
-    a_size = len(a)
-    pooled_data = np.hstack((a, b))
-
-    diff_mean_results = []
-    
-    if onesided == False:
-        test_diff = abs(a.mean() - b.mean()) # The test stat if twosided
-
-        for _ in range(iters):
-            np.random.shuffle(pooled_data)
-            group1 = pooled_data[:a_size]
-            group2 = pooled_data[a_size:]
-            result = abs(group1.mean() - group2.mean())
-            diff_mean_results.append(result)
-    
-    elif onesided == True:
-        test_diff = a.mean() - b.mean() # The test stat if onesided
-
-        for _ in range(iters):
-            np.random.shuffle(pooled_data)
-            group1 = pooled_data[:a_size]
-            group2 = pooled_data[a_size:]
-            result = group1.mean() - group2.mean()
-            diff_mean_results.append(result)
-     
-    else:
-        raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
-    
-    return test_diff, np.array(diff_mean_results)
-
-
-def ResampleDiffMeansHa(a, b, iters=1000):
-    """Generates a difference in means sampling distribution for the alternative hypothesis that two groups differ via resampling of each group. 
-    In this case the resampling is done on each sample separately. 
-    (ie. assuming the alternative hypothesis that the samples are different) 
-    Can then make an rv of this distribution to calculate sampling distribution mean, std deviation (std error), and confidence interval (rv.interval). 
-    Can also get a one-sided p-value for case of no difference null hypothesis using rv.cdf(0). 
-    For two-sided p-value, can double the one-sided if sampling distribution is symmetrical or use the H0 version of this function. 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        a (array-like): Input data set 1
-        b (array-like): Input data set 2
-        iters (int, optional): The number of simulations to run (Defaults to 1000)
-        
-    Returns:
-        test_diff: Original actual difference in means value
-        diff_mean_results (array): Sampling distribution for the alternative hypothesis obtained from resampling
-    """
-    a=pd.Series(a)
-    b=pd.Series(b)
-    
-    diff_mean_results = []
-    
-    test_diff = a.mean() - b.mean()
-    
-    for _ in range(iters):
-        a_resample = a.sample(n=len(a), replace=True)
-        b_resample = b.sample(n=len(b), replace=True)
-        resample_diff = a_resample.mean() - b_resample.mean()
-        diff_mean_results.append(resample_diff)
-        
-    return test_diff, np.array(diff_mean_results)
-
-
-def ResampleCorrelationH0(x, y, iters=1000, onesided=False, method='pearson'):
-    """Generates a correlation sampling distribution for the null hypothesis of no correlation between the variables via permutation of one of the variables. 
-    Can then make an rv of this distribution to plot cdf, compute p-value for the actual correlation value (eg. rv.cdf at actual correlation(test_r)). 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        x (array-like): Input variable 1
-        y (array-like): Input variable 2
-        iters (int): The number of simulations to run (Defaults to 1000)
-        onesided (bool): If set to True a onesided test, that does not use absolute value of difference, is run (Defaults to False)
-        method (string): Select 'pearson' or 'spearman' method (default: 'pearson')
-
-    Returns:
-        test_r: Original actual correlation value
-        corrs (array): Sampling distribution for the null hypothesis of no correlation obtained from resampling
-    """
-    xs, ys = np.array(x), np.array(y)
-    
-    if method == 'pearson':
-
-        corrs=[]    
-        if onesided == False:
-            test_r = abs(stats.pearsonr(xs, ys)[0])
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = abs(stats.pearsonr(xs, ys)[0])
-                corrs.append(corr)
-
-        elif onesided == True:
-            test_r = stats.pearsonr(xs, ys)[0]
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = stats.pearsonr(xs, ys)[0]
-                corrs.append(corr)
-
-        else:
-            raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
-    
-    elif method == 'spearman':
-
-        corrs=[]    
-        if onesided == False:
-            test_r = abs(stats.spearmanr(xs, ys)[0])
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = abs(stats.spearmanr(xs, ys)[0])
-                corrs.append(corr)
-
-        elif onesided == True:
-            test_r = stats.spearmanr(xs, ys)[0]
-
-            for _ in range(iters):
-                xs = np.random.permutation(xs)
-                corr = stats.spearmanr(xs, ys)[0]
-                corrs.append(corr)
-
-        else:
-            raise TypeError('\'onesided\' parameter only accepts Boolean True or False')        
-    
-    else:
-        raise Exception('Must enter either pearson or spearman as a string for method argument')       
-    
-    return test_r, np.array(corrs)
-
-
-def ResampleCorrelationHa(x, y, iters=1000, method='pearson'):
-    """Generates a correlation sampling distribution for the alternative hypothesis of correlation existing between the variables. 
-    This is done by resampling x, y pairs and calculating correlation on new samples. 
-    Can then make an rv of this distribution to calculate sampling distribution mean, std deviation (std error), and confidence interval (rv.interval). 
-    Can also get a one-sided p-value for case of no difference null hypothesis using rv.cdf(0). 
-    For two-sided p-value, can double the one-sided if sampling distribution is symmetrical or use the H0 version of this function. 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        x (array-like): Input variable 1
-        y (array-like): Input variable 2
-        iters (int): The number of simulations to run (Defaults to 1000)
-        method (string): Select 'pearson' or 'spearman' method (default: 'pearson')
-        
-    Returns:
-        actual_r: Original actual correlation value
-        corrs (array): Sampling distribution for the alternative hypothesis of no correlation obtained from resampling
-    """
-    if method == 'pearson':  
-        # Calculate actual correlation
-        actual_r = stats.pearsonr(x, y)[0]
-
-        # Create a dataframe to hold the x and y values as pairs
-        df = pd.DataFrame({'x':x, 'y': y})
-
-        corrs=[]    
-        for _ in range(iters):
-            sample = df.sample(n=len(df), replace=True)
-            r = stats.pearsonr(sample.x, sample.y)[0]
-            corrs.append(r)
-    
-    elif method == 'spearman':
-        # Calculate actual correlation
-        actual_r = stats.spearmanr(x, y)[0]
-
-        # Create a dataframe to hold the x and y values as pairs
-        df = pd.DataFrame({'x':x, 'y': y})
-
-        corrs=[]    
-        for _ in range(iters):
-            sample = df.sample(n=len(df), replace=True)
-            r = stats.spearmanr(sample.x, sample.y)[0]
-            corrs.append(r)
-    
-    else:
-        raise Exception('Must enter either pearson or spearman as a string for method argument')
-      
-    return actual_r, np.array(corrs)
-
-
-def ResampleChiSquare(observed, expected, iters=1000):
-    """Generates a chisquared statistic sampling distribution by randomly choosing values 
-    according to the expected probablities to simulate the null hypothesis. 
-    The sequences must be the same length, be integer counts of a categorical variable 
-    and the sum of the sequence values must be the same. 
-    If the sum of the sequence values is different, first normalize the expected values 
-    and then create a new expected values sequence by multiplying by the total number of observed values. 
-    adjust_expected = expected/sum(expected)*sum(observed) 
-    Can then make an rv of this distribution to plot cdf and  
-    compute a p-value for the actual chi-squared statistic (eg. rv.cdf at actual statistic (test_chi)). 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        observed (array-like): observed values sequence
-        expected (array-like): expected values sequence
-        iters (int, optional): Number of iterations to run when building distribution. Defaults to 1000.
-
-    Returns:
-        test_chi: Original actual chi squared value
-        chis (array): Sampling distribution for the null hypothesis obtained from resampling
-    """
-    observed, expected = np.array(observed), np.array(expected)
-    
-    # Check that sum of values are equal
-    if np.isclose(sum(observed), sum(expected)) == False:
-        raise ValueError('The sum of the values for observed and expected must be equal.')
-    
-    # Calculate the chi square test statistic
-    test_chi = sum((observed - expected)**2 / expected)
-        
-    # Calculate the variables needed for resampling
-    n = sum(expected)
-    values = list(range(len(expected)))
-    p_exp = expected/sum(expected)
-    
-    # Build the chi square sampling distribution for the null hypothesis
-    chis=[]
-    for _ in range(iters):
-        # Build a model_observed sequence generated by resampling using expected probabilities
-        hist = Counter({x:0 for x in values})
-        hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
-        sorted_hist = sorted(hist.items())
-        model_observed = np.array([x[1] for x in sorted_hist])
-
-        # Compute chi square statistic and append
-        chi = sum((model_observed - expected)**2 / expected)
-        chis.append(chi)
-    
-    return test_chi, np.array(chis)
-
-
-def ResampleChiSquareContingency(observed, iters=1000):
-    """Generates a chisquared statistic sampling distribution 
-    from a contingency table. 
-    Can then make an rv of this distribution to plot cdf and  
-    compute a p-value for the actual chi-squared statistic (eg. rv.cdf at actual statistic (test_chi)). 
-    Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
-
-    Args:
-        observed (array-like): observed contingency table
-        iters (int, optional): Number of iterations to run when building distribution. Defaults to 1000.
-
-    Returns:
-        test_chi: Original actual chi squared value
-        chis (array): Sampling distribution for the null hypothesis obtained from resampling
-    """
-    # Put the data into array form
-    observed = np.asarray(observed, dtype=np.float64)
-    
-    # Calculate the test chi square statistic and the expected array
-    test_chi,_,_,expected = stats.chi2_contingency(observed)
-    
-    # Calculate variables to be used in resampling
-    expected = np.asarray(expected, dtype=np.float64)
-    expected_shape = expected.shape
-    expected_ps = expected / np.sum(expected)
-    values = np.array(list(range(len(expected.ravel())))) # Flatten the array and then reshape it later
-    n= int(np.sum(expected))
-      
-    # Compute resampled expected values and compute chi square 
-    # to build a sampling distribution that represents the null hypothesis
-    chis=[]
-    for _ in range(iters):
-        hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
-        hist.update(np.random.choice(values, size=n, replace=True, p=expected_ps.ravel()))
-        sorted_hist = sorted(hist.items())
-        resampled_expected = np.array([x[1] for x in sorted_hist])
-        resampled_expected_reshaped = resampled_expected.reshape(expected_shape) # Put back into original shape
-
-        chi = stats.chi2_contingency(resampled_expected_reshaped)[0]
-        chis.append(chi)
-
-    return test_chi, np.array(chis)
-
-
-def ChiSquareContribution(obs, exp):
-    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
-    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
-
-    Args:
-        obs (array-like): The observed frequency array
-        exp (array-like): The expected frequency array
-
-    Returns:
-        array: Chi square contribution array
-    """
-    obs_array = np.array(obs)
-    exp_array = np.array(exp)
-    
-    return (obs_array - exp_array)**2/exp_array
-
-
-def SummarizeEstimates(estimates, conf_int=0.95):
-    """Computes the mean, standard deviation (std error), and a confidence interval for a sampling distribution (estimates).
-
-    Args:
-        estimates (array-like): A sequence of estimates for a statistic obtained from resampling (sampling distribution)
-        conf_int (float): Probability for the confidence interval. Must be between 0 and 1. Defaults to 0.95.
-
-    Returns:
-        mean: mean value of the estimates
-        std: standard deviation of the estimates (std error)
-        confidence interval: interval about the median of the distribution
-    """
-    rv = DiscreteRv(estimates)
-    return np.mean(estimates), np.std(estimates), rv.interval(conf_int)
-
-
-def PValueFromEstimates(estimates, test_statistic, tail='right'):
-    """Generates a pvalue from a sampling distribution (sequence of estimates) for a given test statistic.
-
-    Args:
-        estimates (array-like): The sampling distribution sequence
-        test_statistic (float): The test statistic to be used to generate the pvalue
-        tail (str, optional): Determines which tail to use for pvalue. Accepts 'left' or 'right' only. Defaults to 'right'.
-
-    Returns:
-        pvalue: Pvalue for test statistic
-    """
-    rv = DiscreteRv(estimates)
-    
-    if tail == 'left':
-        pvalue = rv.cdf(test_statistic)
-    elif tail == 'right':
-        pvalue = 1 - rv.cdf(test_statistic)
-    else:
-        raise Exception('The value of \'tail\' can only be either \'left\' or \'right\'')
-    
-    return pvalue
 
 
 def VariableMiningOLS(df, y):
@@ -1154,492 +773,533 @@ class UnimplementedMethodException(Exception):
     """Exception if someone calls a method that should be overridden."""
 
 
-class HypothesisTest(object):
-    """Represents a hypothesis test. 
-    The actual test statistic for the data is available through a .actual attribute. 
-    After PValue is run the scipy stats random variable for the sampling distribution is available through a .rv attribute. 
-    The cdf of the distribution along with a line representing the test statistic value can be plotted using PlotCdf(). 
-    The largest test statistic seen in the simulations is given by MaxTestStat()."""
-
-    def __init__(self, data):
+class HypothesisTest():
+    """Hypothesis test superclass. 
+    """
+    def __init__(self, data, tail='right', iters=1000):
         """Initializes the hypothesis test.
 
         data: data in whatever form is relevant
         """
         self.data = data
-        self.MakeModel()
-        self.actual = self.TestStatistic(data) # pylint: disable=assignment-from-no-return
-        self.test_stats = None
-        self.rv = None
+        self.tail = tail
+        self.iters = iters
+        self.PrepareData(data)
+        self.TestStat()
+        self.rv = self.ComputeRv() # pylint: disable=assignment-from-no-return
 
-    def PValue(self, iters=1000):
+    # Provide the functionality to convert the data into the format needed 
+    # for use in ComputeRv and Power functions. 
+    # Ex. Convert to array, split data into component groups, etc. 
+    # The self data variables must be created in the function, not returned. 
+    # See child classes for examples
+    def PrepareData(self, data):
+        UnimplementedMethodException()
+        
+    # This function only needs to be written in the case of a null hypothesis based test. 
+    # The self.test_stat needs to be created in the function, not returned. 
+    # In the case of an alternative hypothesis based test 
+    # test_stat will be provided via a class parameter. 
+    # See child classes for examples
+    def TestStat(self):
+        pass
+    
+    # Provide the functionality that computes the sampling distribution and rv for the data. 
+    # See child classes for examples
+    def ComputeRv(self):
+        UnimplementedMethodException()
+        
+    # Provide the functionality that computes the power by running multiple iterations of the hypothesis test.
+    # The code in the for loop must first create new data for the run, 
+    # which simulates taking another sample from the population, and then run the hypothesis test.
+    # See child classes for examples
+    def Power(self):
+        UnimplementedMethodException()
+    
+    def PValue(self):
         """Computes the distribution of the test statistic and p-value.
-
-        iters: number of iterations
 
         returns: float p-value
         """
-        self.test_stats = [self.TestStatistic(self.RunModel())
-                           for _ in range(iters)]
-        self.rv = DiscreteRv(self.test_stats)
+        if self.tail == 'left':
+            pvalue = self.rv.cdf(self.test_stat) # pylint: disable=no-member
+        elif self.tail == 'right':
+            pvalue = 1 - self.rv.cdf(self.test_stat) # pylint: disable=no-member
+        else:
+            raise Exception('The value of \'tail\' can only be either \'left\' or \'right\'')
 
-        count = sum(1 for x in self.test_stats if x >= self.actual)
-        return count / iters
+        return pvalue
 
-    def MaxTestStat(self):
-        """Returns the largest test statistic seen during simulations.
+    def MinMaxTestStat(self):
+        """Returns the smallest and largest test statistics in the sampling distribution.
         """
-        return max(self.test_stats)
+        return min(self.rv.xk), max(self.rv.xk)
 
-    def PlotCdf(self, label=None):
-        """Draws a Cdf with vertical lines at the observed test stat.
+    def PlotCdf(self):
+        """Draws a Cdf with a vertical line at the test stat.
         """      
-        def VertLine(x):
-            """Draws a vertical line at x."""
-            plt.plot([x, x], [0, 1], color='0.8')
-
-        VertLine(self.actual)
-        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk)) # pylint: disable=no-member
-
-    def TestStatistic(self, data):
-        """Computes the test statistic.
-
-        data: data in whatever form is relevant        
-        """
-        raise UnimplementedMethodException()
-
-    def MakeModel(self):
-        """Build a model of the null hypothesis.
-        """
-        pass
-
-    def RunModel(self):
-        """Run the model of the null hypothesis.
-
-        returns: simulated data
-        """
-        raise UnimplementedMethodException()
-
-
-class HTDiffMeansPermute(HypothesisTest):
-
-    def TestStatistic(self, data):
-        group1, group2 = data
-        test_stat = abs(group1.mean() - group2.mean())
-        return test_stat
-
-    def MakeModel(self):
-        group1, group2 = self.data
-        self.n, self.m = len(group1), len(group2)
-        self.pool = np.hstack((group1, group2))
-
-    def RunModel(self):
-        np.random.shuffle(self.pool)
-        data = self.pool[:self.n], self.pool[self.n:]
-        return data
-
-
-class HTDiffMeansPermuteOneSided(HTDiffMeansPermute):
-
-    def TestStatistic(self, data):
-        group1, group2 = data
-        test_stat = group1.mean() - group2.mean()
-        return test_stat
-
-
-class HTDiffMeansRandom(HTDiffMeansPermute):
-    '''Tests a difference in means using resampling.'''
-
-    def RunModel(self):
-        group1 = np.random.choice(self.pool, self.n, replace=True)
-        group2 = np.random.choice(self.pool, self.m, replace=True)
-        return group1, group2
-
-
-class HTDiffStdPermute(HTDiffMeansPermute):
-
-    def TestStatistic(self, data):
-        group1, group2 = data
-        test_stat = group1.std() - group2.std()
-        return test_stat
-
-
-class HTCorrelationPermute(HypothesisTest):
-
-    def TestStatistic(self, data):
-        xs, ys = data
-        test_stat = abs(stats.pearsonr(xs, ys)[0])
-        return test_stat
-
-    def RunModel(self):
-        xs, ys = self.data
-        xs = np.random.permutation(xs)
-        return xs, ys
-
-
-class HTChiSquare(HypothesisTest):
-    '''Represents a hypothesis test for two sequences, observed and expected. 
-    Pass the sequences as arrays. 
-    The sequences must be the same length, be integer counts of a categorical variable 
-    and have the sum of the sequence values must be the same. 
-    If the sum of the sequence values is different, first normalize the expected values 
-    and then create a new expected values sequence by multiplying by the total number of observed values. 
-    adjust_expected = expected/sum(expected)*sum(observed)'''
-    
-    def TestStatistic(self, data):
-        observed, expected = data
-        test_stat = sum((observed - expected)**2 / expected)
-        return test_stat
-
-    def RunModel(self):
-        observed, expected = self.data
-        n = sum(observed)
-        values = list(range(len(expected)))
-        p_exp = expected/sum(expected)
-        hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
-        hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
-        sorted_hist = sorted(hist.items())
-        model_observed = np.array([x[1] for x in sorted_hist])
-        return model_observed, expected
-
-
-class PowerTest():
-    """Power test superclass. 
-    All child classes must provide PrepareData and ComputeTestStatandRv methods.
-    """
-    
-    def __init__(self, data, alpha=0.05, alternative='two-sided', num_runs=1000):
-        self.data = data
-        self.alpha = alpha
-        self.alternative = alternative
-        self.num_runs = num_runs
-        self.PrepareData()
-    
-    # Provide functionality to convert the data into format needed for use in BuildRv
-    # Ex. Convert to array, split data into component groups, etc.
-    # See child classes for examples
-    def PrepareData(self):
-        UnimplementedMethodException()
-    
-    # Provide functionality that creates the run data and then computes the run's test stat and rv
-    # This involves doing one resample to simulate pulling an additional sample from the population,
-    # then calculating the test_stat, building a sampling distribution, and computing the rv
-    # See child classes for examples
-    def ComputeTestStatandRv(self):
-        UnimplementedMethodException()
-    
-    # Computes the pvalue of test stat from an rv,
-    # and adds to pvalue_count if less than significance level
-    def _RunPvalueCount(self):
-        test_stat, rv = self.ComputeTestStatandRv() # pylint: disable=assignment-from-no-return
+        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk), color='C0', lw=2) # pylint: disable=no-member
         
-        p_value_right = 1 - rv.cdf(test_stat)
-        p_value_left = rv.cdf(test_stat)
-        
-        # Two-sided test
-        if self.alternative == 'two-sided':
-            if (p_value_right < self.alpha/2) or (p_value_left < self.alpha/2):
-                self.pvalue_count+= 1
-        
-        # One-sided test using the right side of the distribution
-        elif self.alternative == 'right': 
-            if p_value_right < self.alpha:
-                self.pvalue_count += 1
-        
-        # One-sided test using the left side of the distribution
-        elif self.alternative == 'left': 
-            if p_value_left < self.alpha:
-                self.pvalue_count += 1
-        
-        else:
-            raise ValueError("alternative has to be 'two-sided', 'right', or 'left")
-    
-    # Method for computing power 
-    def Power(self):
-        self.pvalue_count = 0
-        for _ in range(self.num_runs):
-            self._RunPvalueCount()
-            
-        return self.pvalue_count / self.num_runs
+        plt.axvline(self.test_stat, color='C1', lw=1.3) # pylint: disable=no-member
 
 
-class PTMean(PowerTest):
-    """Calculates the power of a one-sample mean hypothesis test. 
-    A test_stat (eg. zero for no effect) must be provided.
-    """
-    def __init__(self, data, test_stat, alpha=0.05, alternative='two-sided', num_runs=1000):
-        PowerTest.__init__(self, data, alpha, alternative, num_runs)
-        # Alternative hypothesis power tests require a test_stat be provided for null hypothesis (eg. zero for no effect)
-        self.test_stat = test_stat 
-    
-    def PrepareData(self):
+class HTMean(HypothesisTest):
+    """A one-sample mean hypothesis test. 
+    A test_stat to represent the null hypothesis must be provided. 
+    This test can only produce a onesided pvalue.
+    """  
+    # For tests that resample to build a distribution for the alternative hypothesis 
+    # a test_stat parameter must be included in __init__ to represent the null hypothesis
+    # This test_stat is made an attribute of the class below
+    def __init__(self, data, test_stat, tail='right', iters=1000):
+        self.test_stat = test_stat
+        HypothesisTest.__init__(self, data, tail, iters)
+
+    def PrepareData(self, data):
         self.data = np.array(self.data)
-    
-    def ComputeTestStatandRv(self):
-        run_data = np.random.choice(self.data, size=len(self.data), replace=True)
-        mean_estimates = [np.random.choice(run_data, size=len(run_data), replace=True).mean() for _ in range(100)]
         
-        test_stat = self.test_stat
-        rv = DiscreteRv(mean_estimates)
+    def ComputeRv(self):       
+        # Build the sampling distribution
+        mean_estimates = [np.random.choice(self.data, size=len(self.data), replace=True).
+                          mean() for _ in range(self.iters)]
+
+        return DiscreteRv(mean_estimates)
+
+    def Power(self, alpha=0.05, num_runs=1000):        
+        pvalue_count = 0
         
-        return test_stat, rv
+        for _ in range(num_runs):
+            # Create run_data that simulates taking another sample from the population
+            run_data = np.random.choice(self.data, size=len(self.data), replace=True)
+        
+            # Run the hypothesis test with run_data
+            test = HTMean(run_data, test_stat=self.test_stat, tail=self.tail, iters=100)
+            pvalue = test.PValue()
+            
+            if pvalue < alpha:
+                pvalue_count += 1
+            
+        return pvalue_count / num_runs
 
 
-class PTDiffMeansH0(PowerTest):
-    """Calculates the power of a difference of means hypothesis test 
-    using permutation of pooled data to simulate the null hypothesis 
-    and build the null hypothesis sampling distribution.
+class HTDiffMeansH0(HypothesisTest):
+    """A difference of means hypothesis test. 
+    Uses permutation to build a sampling distrubition that represents the null hypothesis.
     """
-    def PrepareData(self):
-        self.a, self.b = self.data
-        self.a = np.array(self.a)
-        self.b = np.array(self.b)
-        self.pooled_data = np.hstack((self.a, self.b))
-        self.a_size = len(self.a)
-    
-    def ComputeTestStatandRv(self):
-        # Create run data by resampling the two groups
-        sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
-        sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
+    def __init__(self, data, onesided=False, tail='right', iters=1000):
+        self.onesided = onesided
+        HypothesisTest.__init__(self, data, tail, iters)
+
+    def PrepareData(self, data):
+        a, b = data
+        self.a = np.array(a)
+        self.b = np.array(b)
         
-        # Calculate test_stat for the run data
-        test_stat = sample1.mean() - sample2.mean()
+    # For tests that resample to build a distribution for the null hypothesis 
+    # the calculation of the test stat must be provided. 
+    # The calculation must create self.test_stat, not return the value.
+    # In the case of a twosided test the absolute value of the difference in means is used
+    def TestStat(self):      
+        if self.onesided == False:
+            self.test_stat = abs(self.a.mean() - self.b.mean())
+        elif self.onesided == True:
+            self.test_stat = self.a.mean() - self.b.mean()
+        else:
+            raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
         
+    def ComputeRv(self):
+        # Create the pooled data
+        pooled_data = np.hstack((self.a, self.b))
+        # Compute the size of a, size of b is just the rest
+        a_size = len(self.a)
+        
+        # Build the sampling distribution
         diff_mean_results = []
         
-        # Build a sampling distribution for the run
-        for _ in range(100):
-            np.random.shuffle(self.pooled_data)
-            group1 = self.pooled_data[:self.a_size]
-            group2 = self.pooled_data[self.a_size:]
-            result = group1.mean() - group2.mean()
-            diff_mean_results.append(result)
+        if self.onesided == False:
+            for _ in range(self.iters):
+                np.random.shuffle(pooled_data)
+                group1 = pooled_data[:a_size]
+                group2 = pooled_data[a_size:]
+                result = abs(group1.mean() - group2.mean())
+                
+                diff_mean_results.append(result)
+                    
+        elif self.onesided == True:
+            for _ in range(self.iters):
+                np.random.shuffle(pooled_data)
+                group1 = pooled_data[:a_size]
+                group2 = pooled_data[a_size:]
+                result = group1.mean() - group2.mean()
+                
+                diff_mean_results.append(result)
+                
+        else:
+            raise TypeError('\'onesided\' parameter only accepts Boolean True or False')
+            
+        return DiscreteRv(diff_mean_results)
+    
+    def Power(self, alpha=0.05, num_runs=1000):      
+        pvalue_count = 0
         
-        rv = DiscreteRv(diff_mean_results)
+        for _ in range(num_runs):
+            # Create run_data that simulates taking another sample from the population
+            sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
+            sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
+            run_data = sample1, sample2
         
-        return test_stat, rv
+            # Run the hypothesis test with run_data
+            test = HTDiffMeansH0(run_data, onesided=self.onesided, tail=self.tail, iters=100)
+            pvalue = test.PValue()
+            
+            if pvalue < alpha:
+                pvalue_count += 1
+            
+        return pvalue_count / num_runs
 
 
-class PTDiffMeansHa(PowerTest):
-    """Calculates the power of a difference of means hypothesis test 
-    using resampling of groups to simulate the alternative hypothesis 
-    and build the alternative hypothesis sampling distribution. 
-    A test_stat (eg. zero for no effect) must be provided.
+class HTDiffMeansHa(HypothesisTest):
+    """A difference of means hypothesis test. 
+    Uses resampling to build a sampling distrubition that represents the alternative hypothesis.
     """
-    def __init__(self, data, test_stat, alpha=0.05, alternative='two-sided', num_runs=1000):
-        PowerTest.__init__(self, data, alpha, alternative, num_runs)
-        # Alternative hypothesis power tests require a test_stat be provided for null hypothesis (eg. zero for no effect)
-        self.test_stat = test_stat 
-    
-    def PrepareData(self):
-        self.a, self.b = self.data
-        self.a = np.array(self.a)
-        self.b = np.array(self.b)
-    
-    def ComputeTestStatandRv(self):
-        # Create run data
-        sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
-        sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
-        
+    # For tests that resample to build a distribution for the alternative hypothesis 
+    # a test_stat parameter must be included in __init__ to represent the null hypothesis
+    # This test_stat is made an attribute of the class below
+    def __init__(self, data, test_stat, tail='right', iters=1000):
+        self.test_stat = test_stat
+        HypothesisTest.__init__(self, data, tail, iters)
+
+    def PrepareData(self, data):
+        a, b = data
+        self.a = np.array(a)
+        self.b = np.array(b)
+
+    def ComputeRv(self):      
+        # Build the sampling distribution
         diff_mean_results = []
         
-        # Build a sampling distribution for the run
-        for _ in range(100):
-            group1 = np.random.choice(sample1, size=len(sample1), replace=True)
-            group2 = np.random.choice(sample2, size=len(sample2), replace=True)
+        for _ in range(self.iters):
+            group1 = np.random.choice(self.a, size=len(self.a), replace=True)
+            group2 = np.random.choice(self.b, size=len(self.b), replace=True)
             result = group1.mean() - group2.mean()
+                
             diff_mean_results.append(result)
+           
+        return DiscreteRv(diff_mean_results)
+    
+    def Power(self, alpha=0.05, num_runs=1000):      
+        pvalue_count = 0
         
-        test_stat = self.test_stat
-        rv = DiscreteRv(diff_mean_results)
+        for _ in range(num_runs):
+            # Create run data
+            sample1 = np.random.choice(self.a, size=len(self.a), replace=True)
+            sample2 = np.random.choice(self.b, size=len(self.b), replace=True)
+            run_data = sample1, sample2
         
-        return test_stat, rv
+            # Run the hypothesis test with run_data
+            test = HTDiffMeansHa(run_data, test_stat=self.test_stat, tail=self.tail, iters=100)
+            pvalue = test.PValue()
+            
+            if pvalue < alpha:
+                pvalue_count += 1
+            
+        return pvalue_count / num_runs
 
 
-class PTCorrelationH0(PowerTest):
-    """Calculates the power of a correlation hypothesis test 
-    using permutation to simulate the null hypothesis of no correlation 
-    and build the null hypothesis sampling distribution.
+class HTCorrelationH0(HypothesisTest):
+    """A correlation hypothesis test. 
+    Uses permutation to build a sampling distrubition that represents the null hypothesis.
     """
-    def __init__(self, data, alpha=0.05, alternative='two-sided', num_runs=1000, method='pearson'):
-        PowerTest.__init__(self, data, alpha, alternative, num_runs)
+    def __init__(self, data, onesided=False, tail='right', iters=1000, method='pearson'):
+        self.onesided = onesided
         self.method = method
-    
-    def PrepareData(self):
-        self.x, self.y = self.data
-        self.x = np.array(self.x)
-        self.y = np.array(self.y)
-        self.df = pd.DataFrame({'x':self.x, 'y': self.y})
-    
-    def ComputeTestStatandRv(self):
-        # Create run data
-        run_data = self.df.sample(n=len(self.df), replace=True)
-        run_x = run_data.x.values
-        run_y = run_data.y.values
+        HypothesisTest.__init__(self, data, tail, iters)
+
+    def PrepareData(self, data):
+        x, y = data
+        self.x = np.array(x)
+        self.y = np.array(y)
         
-        corrs=[]
+    # For tests that resample to build a distribution for the null hypothesis 
+    # the calculation of the test stat must be provided.
+    # In the case of a twosided test the absolute value of the difference in means is used
+    def TestStat(self):
+        if (self.onesided == False) & (self.method == 'pearson'):
+            self.test_stat = abs(stats.pearsonr(self.x , self.y)[0])
+        elif (self.onesided == False) & (self.method == 'spearman'):
+            self.test_stat = abs(stats.spearmanr(self.x , self.y)[0])
+        elif (self.onesided == True) & (self.method == 'pearson'):
+            self.test_stat = stats.pearsonr(self.x , self.y)[0]
+        elif (self.onesided == True) & (self.method == 'spearman'):
+            self.test_stat = stats.spearmanr(self.x , self.y)[0]
+        else:
+            raise ValueError('\'onesided\' parameter only accepts Boolean True or False, ' +
+                             'and \'method\' only accepts \'pearson\' or \'spearman\'')
         
-        # Compute test_stat and build rv for the run
-        if self.method == 'pearson':
-            test_stat = stats.pearsonr(run_x , run_y)[0]
-            
-            for _ in range(100):
-                x_perm = np.random.permutation(run_x)
-                r = stats.pearsonr(x_perm , run_y)[0]
+    def ComputeRv(self):
+        # Build the sampling distribution
+        corrs = []
+        
+        if (self.onesided == False) & (self.method == 'pearson'):
+            for _ in range(self.iters):
+                x_perm = np.random.permutation(self.x)
+                r = abs(stats.pearsonr(x_perm , self.y)[0])
                 corrs.append(r)
-    
-        elif self.method == 'spearman':
-            test_stat = stats.spearmanr(run_x , run_y)[0]
-            
-            for _ in range(100):
-                x_perm = np.random.permutation(run_x)
-                r = stats.spearmanr(x_perm , run_y)[0]
+                
+        elif (self.onesided == False) & (self.method == 'spearman'):
+            for _ in range(self.iters):
+                x_perm = np.random.permutation(self.x)
+                r = abs(stats.spearmanr(self.x , self.y)[0])
+                corrs.append(r)
+        
+        elif (self.onesided == True) & (self.method == 'pearson'):
+            for _ in range(self.iters):
+                x_perm = np.random.permutation(self.x)
+                r = stats.pearsonr(x_perm , self.y)[0]
+                corrs.append(r)
+                
+        elif (self.onesided == True) & (self.method == 'spearman'):
+            for _ in range(self.iters):
+                x_perm = np.random.permutation(self.x)
+                r = stats.spearmanr(self.x , self.y)[0]
                 corrs.append(r)
     
         else:
-            raise Exception('Must enter either pearson or spearman as a string for method argument')   
+            raise ValueError('\'onesided\' parameter only accepts Boolean True or False, ' +
+                             'and \'method\' only accepts \'pearson\' or \'spearman\'')   
         
-        rv = DiscreteRv(corrs)
+        return DiscreteRv(corrs)
         
-        return test_stat, rv
+    def Power(self, alpha=0.05, num_runs=1000):      
+        # Build the df to use to make the run data
+        df = pd.DataFrame({'x':self.x, 'y': self.y})
+        
+        pvalue_count = 0
+        
+        for _ in range(num_runs):
+            # Create run data
+            run_df = df.sample(n=len(df), replace=True)
+            run_x = run_df.x.values
+            run_y = run_df.y.values
+            run_data = run_x, run_y
+        
+            # Run the hypothesis test with run_data
+            test = HTCorrelationH0(run_data, onesided=self.onesided, tail=self.tail, 
+                                   iters=100, method=self.method)
+            pvalue = test.PValue()
+            
+            if pvalue < alpha:
+                pvalue_count += 1
+            
+        return pvalue_count / num_runs
 
 
-class PTCorrelationHa(PowerTest):
-    """Calculates the power of a correlation hypothesis test 
-    using resampling of the paired data to simulate the alternative hypothesis 
-    and build the alternative hypothesis sampling distribution. 
-    A test_stat (eg. zero for no effect) must be provided.
+class HTCorrelationHa(HypothesisTest):
+    """A correlation hypothesis test. 
+    Uses permutation to build a sampling distrubition that represents the null hypothesis.
     """
-    def __init__(self, data, test_stat, alpha=0.05, alternative='two-sided', num_runs=1000, method='pearson'):
-        PowerTest.__init__(self, data, alpha, alternative, num_runs)
+    def __init__(self, data, test_stat, tail='right', iters=1000, method='pearson'):
+        self.test_stat = test_stat
         self.method = method
-        # Alternative hypothesis power tests require a test_stat be provided for null hypothesis (eg. zero for no effect)
-        self.test_stat = test_stat 
-    
-    def PrepareData(self):
-        self.x, self.y = self.data
+        HypothesisTest.__init__(self, data, tail, iters)
+
+    def PrepareData(self, data):
+        x, y = data
+        self.x = np.array(x)
+        self.y = np.array(y)
         self.df = pd.DataFrame({'x':self.x, 'y': self.y})
-    
-    def ComputeTestStatandRv(self):
-        # Create run data
-        run_data = self.df.sample(n=len(self.df), replace=True)
-        
-        corrs=[]
-        
-        # Build rv
-        if self.method == 'pearson':          
-            for _ in range(100):
-                sample = run_data.sample(n=len(run_data), replace=True)
+              
+    def ComputeRv(self):
+        # Build the sampling distribution
+        corrs = []
+                
+        if self.method == 'pearson':
+            for _ in range(self.iters):
+                sample = self.df.sample(n=len(self.df), replace=True)
                 r = stats.pearsonr(sample.x, sample.y)[0]
                 corrs.append(r)
-    
-        elif self.method == 'spearman':            
-            for _ in range(100):
-                sample = run_data.sample(n=len(run_data), replace=True)
+                
+        elif self.method == 'spearman':
+            for _ in range(self.iters):
+                sample = self.df.sample(n=len(self.df), replace=True)
                 r = stats.spearmanr(sample.x, sample.y)[0]
                 corrs.append(r)
     
         else:
-            raise Exception('Must enter either pearson or spearman as a string for method argument')
-               
-        test_stat = self.test_stat
-        rv = DiscreteRv(corrs)
+            raise Exception('Must enter either \'pearson\' or \'spearman\' ' +
+                            'as a string for the \'method\' argument')   
         
-        return test_stat, rv
+        return DiscreteRv(corrs)
+    
+    def Power(self, alpha=0.05, num_runs=1000):    
+        pvalue_count = 0
+        
+        for _ in range(num_runs):
+            # Create run data
+            run_df = self.df.sample(n=len(self.df), replace=True)
+            run_x = run_df.x.values
+            run_y = run_df.y.values
+            run_data = run_x, run_y
+        
+            # Run the hypothesis test with run_data
+            test = HTCorrelationHa(run_data, test_stat=self.test_stat, tail=self.tail, 
+                                   iters=100, method=self.method)
+            pvalue = test.PValue()
+            
+            if pvalue < alpha:
+                pvalue_count += 1
+            
+        return pvalue_count / num_runs
 
 
-class PTChiSquare(PowerTest):
-    """Calculates the power of a chi square hypothesis test 
-    using resampling of the expected sequence to simulate the null hypothesis 
+class HTChiSquare(HypothesisTest):
+    """A chi square hypothesis test. 
+    Uses resampling of the expected sequence to simulate the null hypothesis 
     and build the null hypothesis sampling distribution. 
-    Takes data in the form of two sequences: data = observed, expected
-    """    
-    def PrepareData(self):
-        self.observed, self.expected = self.data
+    Takes data in the form of two sequences: data = observed, expected.
+    """
+    def PrepareData(self, data):
+        self.observed, self.expected = data
         self.observed = np.array(self.observed)
         self.expected = np.array(self.expected)
-    
-    def ComputeTestStatandRv(self):
-        # Create run data (run_observed) by resampling the observed sequence (assuming the alternative hypothesis)
-        n = sum(self.observed)
-        values_obs = list(range(len(self.observed)))
-        p_obs = self.observed/sum(self.observed)
         
-        hist = Counter({x:0 for x in values_obs})
-        hist.update(np.random.choice(values_obs, size=n, replace=True, p=p_obs))
-        sorted_hist = sorted(hist.items())
-        run_observed = np.array([x[1] for x in sorted_hist])
+        # Check that sum of values are equal
+        if np.isclose(sum(self.observed), sum(self.expected)) == False:
+            raise ValueError('The sum of the values for observed and expected must be equal.')
         
-        # Calculate chi square test_stat for the run data
-        test_stat = sum((run_observed - self.expected)**2 / self.expected)
+    def TestStat(self):
+        self.test_stat = sum((self.observed - self.expected)**2 / self.expected)
         
+    def ComputeRv(self):
+        # Calculate the variables needed for resampling        
+        n = sum(self.expected)
+        values = list(range(len(self.expected)))
+        p_exp = self.expected/sum(self.expected)
+        
+        # Build the sampling distribution
         chis = []
         
-        # Build a chi square sampling distribution for the run using the expected sequence (null hypothesis)
-        for _ in range(100):
-            n = sum(self.expected)
-            values = list(range(len(self.expected)))
-            p_exp = self.expected/sum(self.expected)
-            
+        for _ in range(self.iters):          
             hist = Counter({x:0 for x in values}) # Initialize a Counter with zero values
             hist.update(np.random.choice(values, size=n, replace=True, p=p_exp))
             sorted_hist = sorted(hist.items())
             model_observed = np.array([x[1] for x in sorted_hist])
             chi = sum((model_observed - self.expected)**2 / self.expected)
+                
             chis.append(chi)
-        
-        rv = DiscreteRv(chis)
-        
-        return test_stat, rv
-
-
-class PTChiSquareContingency(PowerTest):
-    """Calculates the power of a chi square contingency table hypothesis test 
-    using resampling of the expected sequence to simulate the null hypothesis 
-    and build the null hypothesis sampling distribution. 
-    Takes data in the form of a single observed contingency table (array-like)
-    """    
-    def PrepareData(self):
-        self.observed = self.data
-        self.observed = np.array(self.observed)
+            
+        return DiscreteRv(chis)
     
-    def ComputeTestStatandRv(self):
-        # Create run data (resampled_observed_reshaped) by resampling the observed data (assuming the alternative hypothesis)    
-        observed_shape = self.observed.shape
-        observed_ps = self.observed / np.sum(self.observed)
-        values = np.array(list(range(len(self.observed.ravel())))) # Flatten the array and then reshape it later
-        n= int(np.sum(self.observed))
+    def Power(self, alpha=0.05, num_runs=1000):    
+        pvalue_count = 0
         
-        hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
-        hist.update(np.random.choice(values, size=n, replace=True, p=observed_ps.ravel()))
-        sorted_hist = sorted(hist.items())
-        resampled_observed = np.array([x[1] for x in sorted_hist])
-        resampled_observed_reshaped = resampled_observed.reshape(observed_shape) # Put back into original shape
+        for _ in range(num_runs):
+            # Create a new run_observed by resampling the observed sequence 
+            # Then create the new run_data using run_observed and the original expected sequence
+            n = sum(self.observed)
+            values_obs = list(range(len(self.observed)))
+            p_obs = self.observed/sum(self.observed)
         
-        # Calculate chi square test_stat and expected contingency table from the run data
-        test_stat,_,_,expected = stats.chi2_contingency(resampled_observed_reshaped)
+            hist = Counter({x:0 for x in values_obs})
+            hist.update(np.random.choice(values_obs, size=n, replace=True, p=p_obs))
+            sorted_hist = sorted(hist.items())
+            run_observed = np.array([x[1] for x in sorted_hist])
+            run_data = run_observed, self.expected
+
+            # Run the hypothesis test with run_data
+            test = HTChiSquare(run_data, tail=self.tail, iters=100)
+            pvalue = test.PValue()
+            
+            if pvalue < alpha:
+                pvalue_count += 1
+            
+        return pvalue_count / num_runs
+
+
+class HTChiSquareContingency(HypothesisTest):
+    """A chi square contingency table hypothesis test. 
+    Uses resampling of the expected sequence to simulate the null hypothesis 
+    and build the null hypothesis sampling distribution. 
+    Takes data in the form of a single observed contingency table (array-like).
+    """
+    def PrepareData(self, data):
+        self.observed = data
+        self.observed = np.array(self.observed)
         
+    # In the case of this class, TestStat also computes self.expected 
+    # for later use in the ComputeRv function
+    def TestStat(self):
+        self.test_stat,_,_,self.expected = stats.chi2_contingency(self.observed)
+        
+    def ComputeRv(self):
+        # Calculate the variables needed for resampling        
+        expected_shape = self.expected.shape
+        expected_ps = self.expected / np.sum(self.expected)
+        values = np.array(list(range(len(self.expected.ravel())))) # Flatten the array
+        n= int(np.sum(self.expected))
+        
+        # Build the sampling distribution
         chis = []
         
-        # Build a chi square sampling distribution for the run using the expected sequence (null hypothesis)
-        for _ in range(100):
-            expected_shape = expected.shape
-            expected_ps = expected / np.sum(expected)
-            values = np.array(list(range(len(expected.ravel())))) # Flatten the array and then reshape it later
-            n= int(np.sum(expected))
+        for _ in range(self.iters):          
+            # Initiate an empty histogram to hold resampled values
+            hist = Counter({x:0 for x in values})
             
-            hist = Counter({x:0 for x in values}) # Initiate an empty histogram to hold resampled values
             hist.update(np.random.choice(values, size=n, replace=True, p=expected_ps.ravel()))
             sorted_hist = sorted(hist.items())
             resampled_expected = np.array([x[1] for x in sorted_hist])
-            resampled_expected_reshaped = resampled_expected.reshape(expected_shape) # Put back into original shape
+            
+            # Put the array back into its original shape
+            resampled_expected_reshaped = resampled_expected.reshape(expected_shape)
 
-            chi = stats.chi2_contingency(resampled_expected_reshaped)[0]
+            chi = stats.chi2_contingency(resampled_expected_reshaped)[0]                
             chis.append(chi)
+            
+        return DiscreteRv(chis)
+    
+    def Power(self, alpha=0.05, num_runs=1000):    
+        pvalue_count = 0
         
-        rv = DiscreteRv(chis)
+        for _ in range(num_runs):
+            # Create run_data by resampling the observed data    
+            observed_shape = self.observed.shape
+            observed_ps = self.observed / np.sum(self.observed)
+            values = np.array(list(range(len(self.observed.ravel())))) # Flatten the array
+            n= int(np.sum(self.observed))
         
-        return test_stat, rv
+            # Initiate an empty histogram to hold resampled values
+            hist = Counter({x:0 for x in values})
+            
+            hist.update(np.random.choice(values, size=n, replace=True, p=observed_ps.ravel()))
+            sorted_hist = sorted(hist.items())
+            resampled_observed = np.array([x[1] for x in sorted_hist])
+            run_data = resampled_observed.reshape(observed_shape) # Put back into original shape
+
+            # Run the hypothesis test with run_data
+            test = HTChiSquareContingency(run_data, tail=self.tail, iters=100)
+            pvalue = test.PValue()
+            
+            if pvalue < alpha:
+                pvalue_count += 1
+            
+        return pvalue_count / num_runs
+
+
+def ChiSquareContribution(obs, exp):
+    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
+    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
+
+    Args:
+        obs (array-like): The observed frequency array
+        exp (array-like): The expected frequency array
+
+    Returns:
+        array: Chi square contribution array
+    """
+    obs_array = np.array(obs)
+    exp_array = np.array(exp)
+    
+    return (obs_array - exp_array)**2/exp_array
 
 
 def DollarThousandsFormat(value):

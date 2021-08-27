@@ -11,9 +11,9 @@
   - Could the power tests be added to the hypothesis tests as a class method? - yes
     Is it even possible to call a class within itself? - yes
   - Still need to figure out how to deal with the onsided parameter
-    This can probably be addressed using an if statement
+    This can probably be addressed using an if statement - done
   - Also still need to create a superclass method placeholder - done
-  - Check that attributes like test_stat and rv do not change after running Power() method
+  - Check that attributes like test_stat and rv do not change after running Power() method - done
   - Write up documentation for the classes including lists of attributes and methods
   - Mention in documentation for superclass that this class itself is not meant to be used, must use subclasses
   - Could also try this a different way as below:  
@@ -22,10 +22,11 @@
     and then run the hypothesis test.
     This would then need to be repeated to calculate power of the test.
 
-* I think I can just get rid of my resampling functions too
+* I think I can just get rid of my resampling functions too - done
   - Check that the same sampling distributions can be returned from my hypothesis test classes
   - If not then could make the sampling distribution an attribute of the class
   - This could be done by returning the rv and the sampling distribution from the ComputeRv functions
+  - There is no need to return the sampling distribution because the rv can provide any attributes needed (std, mean, etc.)
 
 * Should I mark some of my hypothesis test functions as private (single underbar in front)?
 
