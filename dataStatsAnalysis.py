@@ -769,18 +769,83 @@ def EstimateHazardValues(duration, event_observed, verbose=False):
     return lams
 
 
+def ChiSquareContribution(obs, exp):
+    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
+    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
+
+    Args:
+        obs (array-like): The observed frequency array
+        exp (array-like): The expected frequency array
+
+    Returns:
+        array: Chi square contribution array
+    """
+    obs_array = np.array(obs)
+    exp_array = np.array(exp)
+    
+    return (obs_array - exp_array)**2/exp_array
+
+
+def DollarThousandsFormat(value):
+    """Formats a value into dollars with a thousands separator. Absolute value applied.
+
+    Args:
+        value (int or float): Value to be formatted
+
+    Returns:
+        string: formatted value
+    """
+    return '${:,.0f}'.format(abs(value))
+
+
+def TrimData(data, limits=None, prop=None):
+    """Trims data by either limits on values or a proportion.
+
+    Args:
+        data (array-like): A sequence of data
+        limits (list or tuple, optional): Must be entered as a list or tuple of len 2. Defaults to None.
+        prop (float, optional): The proportion to be trimmed.
+        The entered prop will be trimmed from each end.
+        Ex. entering 0.05 trims that amount of each end, trimming 10% in total.
+        Must enter as a proportion less than 0.5. Defaults to None.
+
+    Returns:
+        array: The trimmed array
+    """
+    data_array = sorted(np.array(data)) # Convert to array and sort values
+    
+    if (limits == None) & (prop == None):
+        raise Exception('Must use either the limits or prop parameter')
+    elif (limits != None) & (prop != None):
+        raise Exception('Can only use limits or prop parameter, not both')
+    else:
+        if (limits != None) & (prop == None):
+            if type(limits) not in [list, tuple]:
+                raise TypeError('limits must be either a list or a tuple of values')      
+            else:
+                data_trimmed = [x for x in data_array if ((x>limits[0]) & (x<limits[1]))]
+        else:
+            if prop >= 0.5:
+                raise ValueError('prop must be a proportion less than 0.5')
+            else:
+                trim = int(prop*len(data_array))
+                data_trimmed = data_array[trim:-trim]
+    return data_trimmed
+
+
 class UnimplementedMethodException(Exception):
     """Exception if someone calls a method that should be overridden."""
 
 
 class HypothesisTest():
     """Hypothesis test superclass. 
+
+    This class cannot be used as is. 
+    It is to be used to construct hypothesis tests 
+    for various different test statistics. 
+    See the existing child classes below for examples.
     """
     def __init__(self, data, tail='right', iters=1000):
-        """Initializes the hypothesis test.
-
-        data: data in whatever form is relevant
-        """
         self.data = data
         self.tail = tail
         self.iters = iters
@@ -847,6 +912,45 @@ class HTMean(HypothesisTest):
     """A one-sample mean hypothesis test. 
     A test_stat to represent the null hypothesis must be provided. 
     This test can only produce a onesided pvalue.
+
+    Parameters
+    ----------
+    data (array-like):
+        1D sequence of data
+    test_stat (float):
+        The test stat to represent the null hypothesis
+    tail (str):
+        The tail of the distribution to be used in the PValue function
+        Accepts only 'right' or 'left'. Defaults to 'right'
+    iters (int):
+        The number of iterations to run in the ComputeRv function 
+        Defaults to 1000
+    
+    Attributes
+    ----------
+    data:
+        The original data
+    test_stat:
+        The test statistic used in the hypothesis test
+    rv:
+        A scipy.stats discrete_rv object (random variable) 
+        that represents the sampling distribution
+        This object provides numerous useful attributes and methods
+        See the discrete_rv documentation for details
+
+    Methods
+    -------
+    PValue():
+        Computes the p-value for the hypothesis test
+    Power(alpha=0.05, num_runs=1000):
+        Computes the power of the hypothesis test
+        alpha: the significance level for the hypothesis test, default=0.05
+        num_runs: the number of hypothesis tests to run, default=1000
+    MinMaxTestStat():
+        Returns the smallest and largest test statistics in the sampling distribution
+    PlotCdf():
+        Draws a Cdf of the distribution with a vertical line at the test stat
+    
     """  
     # For tests that resample to build a distribution for the alternative hypothesis 
     # a test_stat parameter must be included in __init__ to represent the null hypothesis
@@ -1283,70 +1387,6 @@ class HTChiSquareContingency(HypothesisTest):
                 pvalue_count += 1
             
         return pvalue_count / num_runs
-
-
-def ChiSquareContribution(obs, exp):
-    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
-    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
-
-    Args:
-        obs (array-like): The observed frequency array
-        exp (array-like): The expected frequency array
-
-    Returns:
-        array: Chi square contribution array
-    """
-    obs_array = np.array(obs)
-    exp_array = np.array(exp)
-    
-    return (obs_array - exp_array)**2/exp_array
-
-
-def DollarThousandsFormat(value):
-    """Formats a value into dollars with a thousands separator. Absolute value applied.
-
-    Args:
-        value (int or float): Value to be formatted
-
-    Returns:
-        string: formatted value
-    """
-    return '${:,.0f}'.format(abs(value))
-
-
-def TrimData(data, limits=None, prop=None):
-    """Trims data by either limits on values or a proportion.
-
-    Args:
-        data (array-like): A sequence of data
-        limits (list or tuple, optional): Must be entered as a list or tuple of len 2. Defaults to None.
-        prop (float, optional): The proportion to be trimmed.
-        The entered prop will be trimmed from each end.
-        Ex. entering 0.05 trims that amount of each end, trimming 10% in total.
-        Must enter as a proportion less than 0.5. Defaults to None.
-
-    Returns:
-        array: The trimmed array
-    """
-    data_array = sorted(np.array(data)) # Convert to array and sort values
-    
-    if (limits == None) & (prop == None):
-        raise Exception('Must use either the limits or prop parameter')
-    elif (limits != None) & (prop != None):
-        raise Exception('Can only use limits or prop parameter, not both')
-    else:
-        if (limits != None) & (prop == None):
-            if type(limits) not in [list, tuple]:
-                raise TypeError('limits must be either a list or a tuple of values')      
-            else:
-                data_trimmed = [x for x in data_array if ((x>limits[0]) & (x<limits[1]))]
-        else:
-            if prop >= 0.5:
-                raise ValueError('prop must be a proportion less than 0.5')
-            else:
-                trim = int(prop*len(data_array))
-                data_trimmed = data_array[trim:-trim]
-    return data_trimmed
 
 
 def main():
