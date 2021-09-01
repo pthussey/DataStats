@@ -922,7 +922,7 @@ class HypothesisTest():
         UnimplementedMethodException()
     
     def PValue(self):
-        """Computes the distribution of the test statistic and p-value.
+        """Computes the p-value for the hypothesis test.
 
         returns: float p-value
         """
@@ -1011,7 +1011,24 @@ class HTMean(HypothesisTest):
 
         return np.array(mean_estimates), DiscreteRv(mean_estimates)
 
-    def Power(self, alpha=0.05, num_runs=1000):        
+    def Power(self, alpha=0.05, num_runs=1000):
+        """Computes the power of the hypothesis test. 
+
+        Args
+        ----
+        alpha (float):
+            The significance level for the hypothesis test.
+            Must be between 0 and 1. Defaults to 0.05
+        num_runs (int):
+            The number of times to run the hypothesis test to compute power.
+            Defaults to 1000.
+
+        Returns
+        -------
+        power:
+            Computed as the percentage of significant pvalues in num_runs of the test.
+            Returned value is between 0 and 1.
+        """        
         pvalue_count = 0
         
         for _ in range(num_runs):
@@ -1031,11 +1048,12 @@ class HTMean(HypothesisTest):
 class HTDiffMeansH0(HypothesisTest):
     """A difference of means hypothesis test. 
     Uses permutation to build a sampling distribution that represents the null hypothesis.
+    Accepts data as a list or tuple of two groups of data (eg. (group1, group2)).
 
     Parameters
     ----------
     data (array-like):
-        1D sequence of data
+        A list or tuple of two groups of data (eg. (group1, group2))
     onesided (boolean):
         If set to True, a one-sided test is run
         If set to False, a two-sided test is run using abs value in statistic calculations
@@ -1128,7 +1146,24 @@ class HTDiffMeansH0(HypothesisTest):
             
         return np.array(diff_mean_results), DiscreteRv(diff_mean_results)
     
-    def Power(self, alpha=0.05, num_runs=1000):      
+    def Power(self, alpha=0.05, num_runs=1000):
+        """Computes the power of the hypothesis test. 
+
+        Args
+        ----
+        alpha (float):
+            The significance level for the hypothesis test.
+            Must be between 0 and 1. Defaults to 0.05
+        num_runs (int):
+            The number of times to run the hypothesis test to compute power.
+            Defaults to 1000.
+
+        Returns
+        -------
+        power:
+            Computed as the percentage of significant pvalues in num_runs of the test.
+            Returned value is between 0 and 1.
+        """      
         pvalue_count = 0
         
         for _ in range(num_runs):
@@ -1152,11 +1187,12 @@ class HTDiffMeansHa(HypothesisTest):
     Uses resampling to build a sampling distribution that represents the alternative hypothesis.
     A test_stat to represent the null hypothesis must be provided. 
     This test can only produce a onesided pvalue.
+    Accepts data as a list or tuple of two groups of data (eg. (group1, group2)).
 
     Parameters
     ----------
     data (array-like):
-        1D sequence of data
+        A list or tuple of two groups of data (eg. (group1, group2))
     test_stat (float):
         The test stat to represent the null hypothesis
     tail (str):
@@ -1219,7 +1255,24 @@ class HTDiffMeansHa(HypothesisTest):
            
         return np.array(diff_mean_results), DiscreteRv(diff_mean_results)
     
-    def Power(self, alpha=0.05, num_runs=1000):      
+    def Power(self, alpha=0.05, num_runs=1000):
+        """Computes the power of the hypothesis test. 
+
+        Args
+        ----
+        alpha (float):
+            The significance level for the hypothesis test.
+            Must be between 0 and 1. Defaults to 0.05
+        num_runs (int):
+            The number of times to run the hypothesis test to compute power.
+            Defaults to 1000.
+
+        Returns
+        -------
+        power:
+            Computed as the percentage of significant pvalues in num_runs of the test.
+            Returned value is between 0 and 1.
+        """      
         pvalue_count = 0
         
         for _ in range(num_runs):
@@ -1241,11 +1294,12 @@ class HTDiffMeansHa(HypothesisTest):
 class HTCorrelationH0(HypothesisTest):
     """A correlation hypothesis test. 
     Uses permutation to build a sampling distribution that represents the null hypothesis.
+    Accepts data as a list or tuple of two groups of data (eg. (x, y))
 
     Parameters
     ----------
     data (array-like):
-        1D sequence of data
+        A list or tuple of two groups of data (eg. (x, y))
     onesided (boolean):
         If set to True, a one-sided test is run
         If set to False, a two-sided test is run using abs value in statistic calculations
@@ -1349,7 +1403,24 @@ class HTCorrelationH0(HypothesisTest):
         
         return np.array(corrs), DiscreteRv(corrs)
         
-    def Power(self, alpha=0.05, num_runs=1000):      
+    def Power(self, alpha=0.05, num_runs=1000):
+        """Computes the power of the hypothesis test. 
+
+        Args
+        ----
+        alpha (float):
+            The significance level for the hypothesis test.
+            Must be between 0 and 1. Defaults to 0.05
+        num_runs (int):
+            The number of times to run the hypothesis test to compute power.
+            Defaults to 1000.
+
+        Returns
+        -------
+        power:
+            Computed as the percentage of significant pvalues in num_runs of the test.
+            Returned value is between 0 and 1.
+        """      
         # Build the df to use to make the run data
         df = pd.DataFrame({'x':self.x, 'y': self.y})
         
@@ -1379,11 +1450,12 @@ class HTCorrelationHa(HypothesisTest):
     that represents the alternative hypothesis of correlation existing between the variables.
     A test_stat to represent the null hypothesis must be provided. 
     This test can only produce a onesided pvalue.
+    Accepts data as a list or tuple of two groups of data (eg. (x, y))
 
     Parameters
     ----------
     data (array-like):
-        1D sequence of data
+        A list or tuple of two groups of data (eg. (x, y))
     test_stat (float):
         The test stat to represent the null hypothesis
     tail (str):
@@ -1458,7 +1530,24 @@ class HTCorrelationHa(HypothesisTest):
         
         return np.array(corrs), DiscreteRv(corrs)
     
-    def Power(self, alpha=0.05, num_runs=1000):    
+    def Power(self, alpha=0.05, num_runs=1000):
+        """Computes the power of the hypothesis test. 
+
+        Args
+        ----
+        alpha (float):
+            The significance level for the hypothesis test.
+            Must be between 0 and 1. Defaults to 0.05
+        num_runs (int):
+            The number of times to run the hypothesis test to compute power.
+            Defaults to 1000.
+
+        Returns
+        -------
+        power:
+            Computed as the percentage of significant pvalues in num_runs of the test.
+            Returned value is between 0 and 1.
+        """    
         pvalue_count = 0
         
         for _ in range(num_runs):
@@ -1483,12 +1572,17 @@ class HTChiSquare(HypothesisTest):
     """A chi square hypothesis test. 
     Uses resampling of the expected sequence to simulate the null hypothesis 
     and build the null hypothesis chi square statistic sampling distribution. 
-    Takes data in the form of two sequences: data = observed, expected.
+    Accepts data in the form of a list or tuple of two sequences (observed, expected).
+    The passed sequences must be the same length, be integer counts of a categorical variable 
+    and the sum of the sequence values must be the same. 
+    If the sum of the sequence values is different, first normalize the expected values 
+    and then create a new expected values sequence by multiplying by the total number of observed values. 
+    adjust_expected = expected/sum(expected)*sum(observed)
 
     Parameters
     ----------
     data (array-like):
-        1D sequence of data
+        A list or tuple of two sequences (observed, expected)
     tail (str):
         The tail of the distribution to be used in the PValue function
         Accepts only 'right' or 'left'
@@ -1556,7 +1650,24 @@ class HTChiSquare(HypothesisTest):
             
         return np.array(chis), DiscreteRv(chis)
     
-    def Power(self, alpha=0.05, num_runs=1000):    
+    def Power(self, alpha=0.05, num_runs=1000):
+        """Computes the power of the hypothesis test. 
+
+        Args
+        ----
+        alpha (float):
+            The significance level for the hypothesis test.
+            Must be between 0 and 1. Defaults to 0.05
+        num_runs (int):
+            The number of times to run the hypothesis test to compute power.
+            Defaults to 1000.
+
+        Returns
+        -------
+        power:
+            Computed as the percentage of significant pvalues in num_runs of the test.
+            Returned value is between 0 and 1.
+        """    
         pvalue_count = 0
         
         for _ in range(num_runs):
@@ -1586,7 +1697,46 @@ class HTChiSquareContingency(HypothesisTest):
     """A chi square contingency table hypothesis test. 
     Uses resampling of the expected sequence to simulate the null hypothesis 
     and build the null hypothesis sampling distribution. 
-    Takes data in the form of a single observed contingency table (array-like).
+    Accepts data in the form of a single observed contingency table (array-like).
+    
+    Parameters
+    ----------
+    data (array-like):
+        Must be in the form of a single observed contingency table
+    tail (str):
+        The tail of the distribution to be used in the PValue function
+        Accepts only 'right' or 'left'
+        Defaults to 'right'
+    iters (int):
+        The number of iterations to run in the ComputeRv function 
+        Defaults to 1000
+    
+    Attributes
+    ----------
+    data:
+        The original data
+    test_stat:
+        The test statistic used in the hypothesis test
+    sampling_dist:
+        The sampling distribution generated by resampling
+    rv:
+        A scipy.stats discrete_rv object (random variable) 
+        that represents the sampling distribution
+        This object provides numerous useful attributes and methods
+        See the discrete_rv documentation for details
+
+    Methods
+    -------
+    PValue():
+        Computes the p-value for the hypothesis test
+    Power(alpha=0.05, num_runs=1000):
+        Computes the power of the hypothesis test
+        alpha: the significance level for the hypothesis test, default=0.05
+        num_runs: the number of hypothesis tests to run, default=1000
+    MinMaxTestStat():
+        Returns the smallest and largest test statistics in the sampling distribution
+    PlotCdf():
+        Draws a Cdf of the distribution with a vertical line at the test stat
     """
     def PrepareData(self, data):
         self.observed = data
@@ -1623,7 +1773,24 @@ class HTChiSquareContingency(HypothesisTest):
             
         return np.array(chis), DiscreteRv(chis)
     
-    def Power(self, alpha=0.05, num_runs=1000):    
+    def Power(self, alpha=0.05, num_runs=1000):
+        """Computes the power of the hypothesis test. 
+
+        Args
+        ----
+        alpha (float):
+            The significance level for the hypothesis test.
+            Must be between 0 and 1. Defaults to 0.05
+        num_runs (int):
+            The number of times to run the hypothesis test to compute power.
+            Defaults to 1000.
+
+        Returns
+        -------
+        power:
+            Computed as the percentage of significant pvalues in num_runs of the test.
+            Returned value is between 0 and 1.
+        """
         pvalue_count = 0
         
         for _ in range(num_runs):

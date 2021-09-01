@@ -1,10 +1,17 @@
-* Edit my alternative hypothesis resampling functions to remove the part about doubling
-  - Can only calculate onesided for values more extreme than the provided null hypothesis test stat
-
 * Could the tail parameter be removed and instead be inferred somehow instead in my hypothesis tests?
   - Maybe could use the location of the average of the sampling disribution in comparison to the test stat?
 
-* Change my power tests to actually use my hypothesis test classes
+* Should I mark some of my hypothesis test functions as private (single underbar in front)?
+
+* I could consider getting rid of my alternative hypothesis tests.
+  - These seem like kind of overkill
+  - But what about the one-sample mean case?
+    I don't think there is a way to do this one other than alternative
+
+* Edit my alternative hypothesis resampling functions to remove the part about doubling - done
+  - Can only calculate onesided for values more extreme than the provided null hypothesis test stat
+
+* Change my power tests to actually use my hypothesis test classes - done
   - Could the power tests be added to the hypothesis tests as a class method? - yes
     Is it even possible to call a class within itself? - yes
   - Still need to figure out how to deal with the onsided parameter
@@ -12,7 +19,7 @@
   - Also still need to create a superclass method placeholder - done
   - Check that attributes like test_stat and rv do not change after running Power() method - done
   - Write up documentation for the classes including lists of attributes and methods
-  - Include some documentation in class methods too, especially the Power() method
+  - Include some documentation in class methods too, especially the Power() method - done
   - Mention in superclass documentation that it is not meant to be used, must use subclasses - done
   - Could also try this a different way as below:  
     Probably don't have to call the class within itself, just the functions like ComputeRv
@@ -24,10 +31,3 @@
   - I decided to just provide the sampling distribution as a hypothesis test class attribute
   - Then it is available if ever needed for some reason
   - Doubtful it will be needed though since the rv has so many useful attributes and methods
-
-* Should I mark some of my hypothesis test functions as private (single underbar in front)?
-
-* I think I should just get rid of my alternative hypothesis and power tests.
-  - These just complicate things and are really overkill
-  - But what about the one-sample mean case?
-    I don't think there is a way to do this one other than alternative
