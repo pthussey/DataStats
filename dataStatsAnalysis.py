@@ -812,23 +812,6 @@ def EstimateHazardValues(duration, event_observed, verbose=False):
     return lams
 
 
-def ChiSquareContribution(obs, exp):
-    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
-    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
-
-    Args:
-        obs (array-like): The observed frequency array
-        exp (array-like): The expected frequency array
-
-    Returns:
-        array: Chi square contribution array
-    """
-    obs_array = np.array(obs)
-    exp_array = np.array(exp)
-    
-    return (obs_array - exp_array)**2/exp_array
-
-
 def DollarThousandsFormat(value):
     """Formats a value into dollars with a thousands separator. Absolute value applied.
 
@@ -1936,6 +1919,23 @@ class HTOnewayAnova(HypothesisTest):
         return pvalue_count / num_runs
 
 
+def ChiSquareContribution(obs, exp):
+    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
+    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
+
+    Args:
+        obs (array-like): The observed frequency array
+        exp (array-like): The expected frequency array
+
+    Returns:
+        array: Chi square contribution array
+    """
+    obs_array = np.array(obs)
+    exp_array = np.array(exp)
+    
+    return (obs_array - exp_array)**2/exp_array
+
+
 def AnovaPostHoc(data, alpha=0.05):
     """Performs ANOVA post-hoc analysis using a difference of means hypothesis test 
     on each possible pairing of supplied data sequences.
@@ -1948,6 +1948,7 @@ def AnovaPostHoc(data, alpha=0.05):
         A list or tuple of data sequences (group_1, group_2... group_n)
     alpha (float)
         The family wise error rate (FWER)
+        Must be between 0 and 1. Defaults to 0.05.
     
     Returns
     -------
@@ -1965,7 +1966,7 @@ def AnovaPostHoc(data, alpha=0.05):
         The experiment-wise significance level
     """
     num_comparisons = int(factorial(len(data))/(2*factorial(len(data)-2)))
-    corrected_alpha = 0.05/num_comparisons
+    corrected_alpha = alpha/num_comparisons
     enum_data = enumerate(data)
     
     results=[]
