@@ -1,7 +1,0 @@
-name: dataStats_env
-dependencies:
-  - pandas
-  - matplotlib
-  - seaborn
-  - scipy
-  - statsmodels
