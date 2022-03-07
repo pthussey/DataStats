@@ -1,4 +1,4 @@
-name: dataStats_env
+name: datastats
 dependencies:
   - pandas
   - matplotlib
