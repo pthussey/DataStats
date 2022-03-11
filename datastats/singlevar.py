@@ -1,10 +1,12 @@
+"""This module contains functions for working with univariate data. 
+These include functions that produce values to plot models of various types of distributions 
+and a number of other functions for working with univariate data.
+"""
+
 import numpy as np
 import pandas as pd
 
 import scipy.stats as stats
-
-from itertools import combinations
-from math import factorial
 
 
 def DiscreteRv(a):
@@ -166,7 +168,8 @@ def KdeValues(sample, n=101):
 
 
 def NormalProbabilityValues(a):
-    """Creates x and y values to be used in a normal probability plot.
+    """Creates x and y values to be used in a normal probability plot. 
+    This kind of plot is used to determine whether or not a data set is normally distributed.
 
     Arguments:
         a {array-like} -- A single input data set

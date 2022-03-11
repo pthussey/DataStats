@@ -1,3 +1,9 @@
+"""This module contains classes for conducting numerous types of hypothesis tests 
+using non-parametric computational methods, inspired by the methods used in Allen Downey's book Think Stats.  
+These classes can produce p-values, calculate the power of the test being performed, 
+and plot a CDF of the sampling distribution.
+"""
+
 import numpy as np
 import pandas as pd
 
@@ -9,7 +15,10 @@ from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 from collections import Counter
 
-from datastats.singlevar import DiscreteRv
+from itertools import combinations
+from math import factorial
+
+from .singlevar import DiscreteRv
 
 
 class UnimplementedMethodException(Exception):

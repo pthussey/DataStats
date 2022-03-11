@@ -1,3 +1,8 @@
+"""This module contains functions for working with multivariate data. 
+These include functions for working with lines of best fit and regression analysis. 
+There are also a couple additional functions used in hazard survival analysis.
+"""
+
 import numpy as np
 import pandas as pd
 
@@ -8,7 +13,7 @@ import patsy
 
 from collections import Counter
 
-from datastats.singlevar import DiscreteRv
+from .singlevar import DiscreteRv
 
 
 def FitLine(xs, inter, slope):
@@ -44,37 +49,6 @@ def Residuals(xs, ys, inter, slope):
     ys = np.asarray(ys)
     res = ys - (inter + slope * xs)
     return res
-
-
-def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
-    ''' Calculate a correlation coefficient and a correlation confidence interval (CI) for two variables. 
-    Uses a parametric approach to calculate the CI. 
-    A non-parametric CI can be obtained from the rv attribute of the correlation hypothesis test classes.
-    
-    Args:
-        x, y {array-like} -- Input data sets
-        alpha {float} -- Significance level (default: 0.05)
-        method {string} -- Select 'pearson' or 'spearman' method (default: 'pearson')
-   
-    Returns:
-        r {float} -- The correlation coefficient
-        p {float} -- The corresponding p value
-        lo, hi {float} -- The lower and upper bounds of the confidence interval
-    '''
-
-    if method == 'pearson':
-        r, p = stats.pearsonr(x,y)
-    elif method == 'spearman':
-        r, p = stats.spearmanr(x,y)
-    else:
-        raise Exception('Must enter either pearson or spearman as a string for method argument')
-
-    r_z = np.arctanh(r)
-    stderr = 1 / np.sqrt(len(x) - 3)
-    z = stats.norm.ppf(1 - alpha / 2)
-    low_z, high_z = r_z - (z * stderr), r_z + (z * stderr)
-    low, high = np.tanh((low_z, high_z))
-    return r, p, low, high
 
 
 def ResidualPercentilePlotData(x, y, n_bins=10):
@@ -162,6 +136,37 @@ def ResampleInterSlope(x, y, iters=1000):
         fys_seq.append(fys)
 
     return np.array(inters), np.array(slopes), fys_seq
+
+
+def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
+    ''' Calculate a correlation coefficient and a correlation confidence interval (CI) for two variables. 
+    Uses a parametric approach to calculate the CI. 
+    A non-parametric CI can be obtained from the rv attribute of the correlation hypothesis test classes.
+    
+    Args:
+        x, y {array-like} -- Input data sets
+        alpha {float} -- Significance level (default: 0.05)
+        method {string} -- Select 'pearson' or 'spearman' method (default: 'pearson')
+   
+    Returns:
+        r {float} -- The correlation coefficient
+        p {float} -- The corresponding p value
+        lo, hi {float} -- The lower and upper bounds of the confidence interval
+    '''
+
+    if method == 'pearson':
+        r, p = stats.pearsonr(x,y)
+    elif method == 'spearman':
+        r, p = stats.spearmanr(x,y)
+    else:
+        raise Exception('Must enter either pearson or spearman as a string for method argument')
+
+    r_z = np.arctanh(r)
+    stderr = 1 / np.sqrt(len(x) - 3)
+    z = stats.norm.ppf(1 - alpha / 2)
+    low_z, high_z = r_z - (z * stderr), r_z + (z * stderr)
+    low, high = np.tanh((low_z, high_z))
+    return r, p, low, high
 
 
 def VariableMiningOLS(df, y):
@@ -312,93 +317,6 @@ def SummarizeRegressionResults(results):
         print('Std(res) %.4g' % results.resid.std())
     except AttributeError:
         print('R^2 %.4g' % results.prsquared)
-
-
-
-def ChiSquareContribution(obs, exp):
-    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
-    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
-
-    Args:
-        obs (array-like): The observed frequency array
-        exp (array-like): The expected frequency array
-
-    Returns:
-        array: Chi square contribution array
-    """
-    obs_array = np.array(obs)
-    exp_array = np.array(exp)
-    
-    return (obs_array - exp_array)**2/exp_array
-
-
-def AnovaPostHoc(data, alpha=0.05):
-    """Performs ANOVA post-hoc analysis using a difference of means hypothesis test 
-    on each possible pairing of supplied data sequences.
-    This analysis is used to determine which pairs 
-    have statistically significant differences in their means
-    
-    Args
-    ----
-    data (array-like):
-        A list or tuple of data sequences (group_1, group_2... group_n)
-    alpha (float)
-        The family wise error rate (FWER)
-        Must be between 0 and 1. Defaults to 0.05.
-    
-    Returns
-    -------
-    results:
-        A tuple of tuples containing the results for each pairing of sequences. 
-        The results can be printed in an easy-to-read format using a for loop. 
-        The results display three pieces of information:
-        1) The pairing
-        2) The pvalue for the pairing
-        3) Whether the pvalue is significant or not (Y or N)
-           * The significance level is determined by comparison of the pvalue 
-             with the experiment-wise significance level. 
-             The Bonferroni correction method is used to compute this significance level.
-    corrected_alpha:
-        The experiment-wise significance level
-    """
-    num_comparisons = int(factorial(len(data))/(2*factorial(len(data)-2)))
-    corrected_alpha = alpha/num_comparisons
-    enum_data = enumerate(data)
-    
-    results=[]
-    for pair in combinations(enum_data, 2):
-        test = HTDiffMeansH0((pair[0][1], pair[1][1]))
-        pvalue = test.PValue()
-        significant = 'Y' if pvalue < corrected_alpha else 'N'
-        results.append(((pair[0][0], pair[1][0]), '{:.3f}'.format(pvalue), significant))
-    
-    return results, corrected_alpha
-
-
-def PairwiseTukeyHsd(data, alpha=0.05):
-    """Uses pairwise Tukey HSD to perform ANOVA post-hoc analysis 
-    to determine which paired comparisons have differences that are significant. 
-    This function uses statsmodels pairwise_tukeyhsd.
-    Accepts data in the form of a list of data sequences (eg.(group_1, group_2... group_n)).
-    The returned object can be printed to show the results.
-    
-    Args
-    ----
-    data (array-like):
-        A list or tuple of data sequences (group_1, group_2... group_n)
-    alpha (float)
-        The family wise error rate (FWER)
-    
-    Returns
-    -------
-    A TukeyHSDResults object 
-    """
-    x = []
-    label = []
-    
-    for grp_num in range(len(data)):
-        x.extend(data[grp_num])
-        label.extend([grp_num]*len(data[grp_num]))
 
 
 def HazardValues(rv):
