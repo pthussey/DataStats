@@ -1,3 +1,6 @@
+"""This module contains functions that are useful in exploratory data analysis plotting.
+"""
+
 import numpy as np
 import pandas as pd
 

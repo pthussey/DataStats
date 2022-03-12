@@ -1,7 +1,8 @@
-"""This module contains classes for conducting numerous types of hypothesis tests 
+"""This module contains classes for conducting various types of hypothesis tests 
 using non-parametric computational methods, inspired by the methods used in Allen Downey's book Think Stats.  
 These classes can produce p-values, calculate the power of the test being performed, 
-and plot a CDF of the sampling distribution.
+and plot a CDF of the sampling distribution. 
+There are also some additional functions included for chisquared and ANOVA post-hoc analysis.
 """
 
 import numpy as np
