@@ -11,7 +11,7 @@ setuptools.setup(
     description='A package of functions and classes for doing exploratory data analysis.',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='',
+    url='https://github.com/pthussey/DataStats',
     license='MIT',
     packages=['datastats'],
     install_requires=['matplotlib', 'pandas', 'scipy', 'seaborn', 'statsmodels']
