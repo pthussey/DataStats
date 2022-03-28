@@ -362,17 +362,17 @@ def PercentileRow(array, p):
     return array[index,]
 
 
-def PercentileRows(ys_seq, percents):
+def PercentileRows(ys_seq, percents = [2.5, 97.5]):
     """Given a collection of lines, selects percentiles along vertical axis. 
     This can be used after building a list of sequences using resampling, 
     and then the returned rows can be plotted (fill between) to produce a CI.
 
     For example, if ys_seq contains simulation results like ys as a
-    function of time, and percents contains ([5, 95]), the result would
-    be a 90% CI for each vertical slice of the simulation results.
+    function of time, and percents contains ([2.5, 97.5]), the result would
+    be a 95% CI for the simulation results.
 
     ys_seq: sequence of lines (y values)
-    percents: list of percentiles (0-100) to select
+    percents: list of percentiles (0-100) to select, defaults to [2.5, 97.5] for a 95% CI
 
     returns: list of NumPy arrays, one for each percentile
     """
@@ -385,8 +385,8 @@ def PercentileRows(ys_seq, percents):
 
     array = np.sort(array, axis=0)
 
-    rows = [PercentileRow(array, p) for p in percents]
-    return rows
+    percentile_rows = [PercentileRow(array, p) for p in percents]
+    return percentile_rows
 
 
 def SummarizeEstimates(estimates, conf_int=0.95):

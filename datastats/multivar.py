@@ -98,7 +98,7 @@ def ResidualPercentilePlotData(x, y, n_bins=10):
 def ResampleInterSlope(x, y, iters=1000):
     """Uses sampling with replacement to generate intercept and slope sampling distributions for two variables of interest.
     Also generates a sequence of fys to be used when adding a CI to a regression plot.
-    Put the fys_seq into PercentileRows to get the low/high lines for plotting.
+    Put the fit_ys_list into datastats.singlevar.PercentileRows to get the low/high lines for plotting the CI.
     Can also make rvs of the inter/slope distributions to plot cdf, compute p-value of hypothesized values (eg. rv.cdf at 0), 
     and calculate sample distribution mean, std deviation (std error), and confidence interval (rv.interval).
     Can also use the 'min' and 'max' built-ins to find what the most extreme values are from the simluations.
@@ -111,7 +111,7 @@ def ResampleInterSlope(x, y, iters=1000):
     Returns:
         inters (array): intercept sampling distribution 
         slopes (array): slope sampling distribution
-        fys_seq (list) : fys to be used for regression plot CI 
+        fit_ys_list (list) : fys to be used for regression plot CI 
     """
     
     # Make a DataFrame to hold the two sequences
@@ -130,12 +130,12 @@ def ResampleInterSlope(x, y, iters=1000):
         inters.append(regress_result.intercept)
         slopes.append(regress_result.slope)
     
-    fys_seq = []
+    fit_ys_list = []
     for inter, slope in zip(inters, slopes):
         _, fys = FitLine(x, inter, slope)
-        fys_seq.append(fys)
+        fit_ys_list.append(fys)
 
-    return np.array(inters), np.array(slopes), fys_seq
+    return np.array(inters), np.array(slopes), fit_ys_list
 
 
 def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):

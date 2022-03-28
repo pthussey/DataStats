@@ -9,6 +9,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.stats as stats
 
+from .singlevar import PercentileRows
+from .multivar import ResidualPercentilePlotData
+from .multivar import FitLine
+from .multivar import ResampleInterSlope
+
 
 # Sets the default rc parameters for plotting
 def SetParams(font='Malgun Gothic', basesize=12, basecolor='0.4', style='seaborn-whitegrid'):
@@ -42,6 +47,264 @@ def SetParams(font='Malgun Gothic', basesize=12, basecolor='0.4', style='seaborn
     plt.rcParams["xtick.bottom"] = True
     plt.rcParams["axes.labelpad"] = basesize
     plt.rcParams['axes.unicode_minus'] = False if font == 'Malgun Gothic' else True
+
+
+def CdfPlot(data, ci=95, central_tendency_measure = 'mean', test_stat=None, x_label = 'x', legend=True):
+    """Plots a CDF for supplied data. 
+    Especially useful for looking at sampling distribution data. 
+    Includes parameters to add lines for a ci, measures of central tendency, and a test statistic.
+
+    Args:
+        data (array-like): Data to be plotted. Must be one-dimensional sequence.
+        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
+        central_tendency_measure: Choose 'mean', 'median', or 'both'. Defaults to 'mean'.
+        test_stat (float, optional): Test stat to plot. Defaults to None.
+        x_label (string): The label to use on the x-axis. Defaults to 'x'.
+        legend (boolean): Choose to include a legend or not. Defaults to True.
+    """
+    # Compute an rv for the data
+    val,cnt = np.unique(data, return_counts=True)
+    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
+    
+    # Set up figure (single plot)    
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+
+    # Plot the cdf
+    ax.plot(rv.xk, rv.cdf(rv.xk))
+
+    # Add lines for ci
+    ax.axvline(rv.interval(ci/100)[0], color='C4', lw=1.3) # CI lower, purple line
+    ax.axvline(rv.interval(ci/100)[1], color='C4', lw=1.3, label='CI') # CI upper, purple line
+    
+    # Add lines for central tendency measures
+    if central_tendency_measure == 'mean':
+        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
+    
+    elif central_tendency_measure == 'median':
+        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
+    
+    elif central_tendency_measure == 'both':
+        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
+        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
+    
+    # Add line for test stat
+    if test_stat is not None:
+        ax.axvline(test_stat, color='C3', lw=1.3, label='Test Stat') # test statistic, red line
+    
+     # Labels and titles
+    ax.set_xlabel(x_label)
+    ax.set_ylabel('Cumulative Density')
+    ax.set_title('CDF Plot')
+    
+    if legend:
+        ax.legend()
+
+    plt.show()
+
+
+def KdePlot(data, bw_adjust=None, clip=None, ci=95, 
+            central_tendency_measure = 'mean', test_stat=None, x_label='x', legend=True):
+    """Plots a KDE for supplied data using Seaborn kdeplot. 
+    Especially useful for looking at sampling distribution data.  
+    Includes parameters to add lines for a ci, measures of central tendency, and a test statistic.
+
+    Args:
+        data (array-like): Data to be plotted. Must be one-dimensional sequence.
+        bw_adjust (float, optional): Adjusts kde bandwidth. Defaults to None.
+        clip (tuple, optional): Clips data at values in the tuple. Defaults to None.
+        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
+        central_tendency_measure: Choose 'mean', 'median', or 'both'. Defaults to 'mean'.
+        test_stat (float, optional): Test stat to plot. Defaults to None.
+        x_label (string): The label to use on the x-axis. Defaults to 'x'.
+        legend (boolean): Choose to include a legend or not. Defaults to True.
+    """
+    # Convert to an array
+    data = np.asarray(data)
+    
+    # Compute an rv for the data, used for ci
+    val,cnt = np.unique(data, return_counts=True)
+    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
+
+    # Set up figure (single plot)
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+
+    # Change settings if needed and plot kde
+    if (bw_adjust != None) and (clip != None):
+        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust, clip=clip)
+    
+    elif (bw_adjust == None) and (clip != None):
+        sns.kdeplot(data, lw=2, clip=clip)
+    
+    elif (bw_adjust != None) and (clip == None):
+        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust)
+    
+    else:
+        sns.kdeplot(data, lw=2)
+    
+    # Add lines for ci
+    ax.axvline(rv.interval(ci/100)[0], color='C4', lw=1.3) # CI lower, purple line
+    ax.axvline(rv.interval(ci/100)[1], color='C4', lw=1.3, label='CI') # CI upper, purple line
+    
+    # Add lines for central tendency measures
+    if central_tendency_measure == 'mean':
+        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
+    
+    elif central_tendency_measure == 'median':
+        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
+    
+    elif central_tendency_measure == 'both':
+        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
+        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
+    
+    # Add line for test stat
+    if test_stat is not None:
+        ax.axvline(test_stat, color='C3', lw=1.3, label='Test Stat') # test_stat, red line
+
+    # Labels and titles
+    ax.set_xlabel(x_label)
+    ax.set_title('KDE Plot')
+        
+    if legend:
+        ax.legend()
+    
+    plt.show()
+
+
+def NormProbPlot(data, y_label='Values'):
+    """Generates a normal probability plot for supplied data. 
+     Especially useful for looking at sampling distribution data. 
+
+    Args:
+        data (array-like)): Data to be plotted. Must be one-dimensional.
+        y_label (str): The label to use on the y-axis. Defaults to 'Values'.
+    """
+    # Convert to an array
+    data = np.asarray(data)
+       
+    # Get the normal probability plot values
+    xs, ys = dssv.NormalProbabilityValues(data)
+    
+    # Get the values to use to draw a fit line
+    fit_xs, fit_ys = dsmv.FitLine([min(xs),max(xs)], data.mean(), data.std())
+    
+    # Set up figure (single plot)
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+    
+    ax.plot(fit_xs, fit_ys, color='0.8')
+    ax.plot(xs, ys)
+    
+    # Labels and titles
+    ax.set_xlabel("Standard Deviations from the Mean")
+    ax.set_ylabel(y_label)
+    ax.set_title('Normal Probability Plot')
+    
+    plt.show()
+
+
+def LinRegPlot(x, y, ci=95, x_label='x', y_label='y', plot_title='Regression Plot'):
+    """Plots a Seaborn-like regression plot that shows a scatter plot of the data, 
+    along with the best fit line and a confidence interval (CI). 
+    The difference with Seaborn is this function uses non-parametric methods to produce the CI lines.
+
+    Args:
+        x (array-like): The x variable.
+        y (array-like): The y variable
+        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
+        x_label (str): The label to use on the x-axis. Defaults to 'x'.
+        y_label (str): The label to use on the y-axis. Defaults to 'y'.
+        plot_title (str): The title for the plot. Defaults to 'Regression Plot'.
+    """
+    # Perform the regression
+    regress_results = stats.linregress(x, y)
+    
+    # Get the best fit line
+    fit_xs, fit_ys = FitLine(x, regress_results.intercept, regress_results.slope)
+    
+    # Build the intercept and slope sampling distributions, as well as the fit_ys_list
+    inters, slopes, fit_ys_list = ResampleInterSlope(x, y)
+    
+    # Get the lines from fit_ys_list to use for the CI
+    percentile_rows = PercentileRows(fit_ys_list, [(100-ci)/2,(ci+100)/2])
+    
+    # Set up the plot figure
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+
+    # Our regression plot
+    ax.scatter(x, y, color='C0', s=16, alpha=0.8)
+    ax.plot(fit_xs, fit_ys, color='C1')
+    ax.fill_between(fit_xs, percentile_rows[0], percentile_rows[1], color='C1', alpha=0.2)
+    
+    # Labels and titles
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(plot_title)
+    
+    plt.show()
+
+
+def LinRegPlusResidualPlot(x, y, ci=95, x_label='x', y_label='y', res_plot_bins=10):
+    """Plots a Seaborn-like regression plot (datastats.plotting.LineRegPlot) 
+    side-by side with a residual percentile plot which is used to help visualize 
+    how well a best fit line fits the data.
+
+    Args:
+        x (array-like): The x variable.
+        y (array-like): The y variable
+        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
+        x_label (str): The label to use on the x-axis. Defaults to 'x'.
+        y_label (str): The label to use on the y-axis. Defaults to 'y'.
+        res_plot_bins (int): Number of bins for residual plot. Defaults to 10.
+    """
+    # Perform the regression
+    regress_results = stats.linregress(x, y)
+    
+    # Get the best fit line
+    fit_xs, fit_ys = FitLine(x, regress_results.intercept, regress_results.slope)
+    
+    # Build the intercept and slope sampling distributions, as well as the fit_ys_list
+    inters, slopes, fit_ys_list = ResampleInterSlope(x, y)
+    
+    # Get the lines from fit_ys_list to use for the CI
+    percentile_rows = PercentileRows(fit_ys_list, [(100-ci)/2,(ci+100)/2])
+    
+    # Set up the plot figure
+    fig,axes = plt.subplots(ncols=2, nrows=1)
+    fig.set_size_inches(16,6)
+
+    # Our regression plot
+    axes[0].scatter(x, y, color='C0', s=16, alpha=0.8)
+    axes[0].plot(fit_xs, fit_ys, color='C1')
+    axes[0].fill_between(fit_xs, percentile_rows[0], percentile_rows[1], color='C1', alpha=0.2)
+    
+    # Labels and titles for regression plot
+    axes[0].set_xlabel(x_label)
+    axes[0].set_ylabel(y_label)
+    axes[0].set_title('Regression Plot')
+    
+    # Build x_means and res_rvs (residual random variables) for the Residual Percentile Plot
+    x_means, res_rvs = ResidualPercentilePlotData(x, y, res_plot_bins)
+    
+    # Residual percentile plot
+    percentiles = [.25,.50,.75]
+
+    for p in percentiles:
+        residual_values_at_p = [rv.ppf(p) for rv in res_rvs]
+        axes[1].plot(x_means, residual_values_at_p, label= p)
+    
+    # Labels and titles for residual plot
+    axes[1].set_xlabel(x_label)
+    axes[1].set_ylabel(y_label)
+    axes[1].set_title('Residual Percentile Plot')
+    axes[1].legend(title='Percentiles')
+    
+    # Resize the residual plot's y-range to the same scale as that of the regression plot
+    axes[1].set_ylim(-max(y)/2,max(y)/2)
+    
+    plt.show()
 
 
 def Despine(ax, spines='topright'):
@@ -313,93 +576,6 @@ def AnnotateLine(xs, ys, color='0.4', weight='normal', fontsize=12, offset=10, d
                         AnnotatePointLeft(coord, color=color,
                                            weight=weight, fontsize=fontsize,
                                            offset=offset, digits=digits)
-
-
-def CdfPlot(data, test_stat=None, mean=False, median=False, CI=False, conf_int=0.95):
-    """Plots a cdf for supplied data.
-
-    Args:
-        data (array-like): Data to be plotted. Needs to be a one-dimensional sequence.
-        test_stat (float, optional): Test stat to plot. Defaults to None.
-        mean (bool, optional): If True plots a line at the mean. Defaults to False.
-        median (bool, optional): If True plots a line at the median. Defaults to False.
-        CI (bool, optional): If True plots lines for the confidence interval. Defaults to False.
-        conf_int (float, optional): Sets the range for the confidence interval. Defaults to 0.95.
-    """
-    # Compute an rv for the data
-    val,cnt = np.unique(data, return_counts=True)
-    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
-
-    # Set up figure (single plot)
-    fig,ax = plt.subplots()
-    fig.set_size_inches(8,6)
-
-    # Plot cdf of the rv computed above
-    # Can include an orange line for the mean, a green line for the median, 
-    # purple lines for the CI, and red lines for the test stat
-    ax.plot(rv.xk, rv.cdf(rv.xk), lw=2.0, label='cdf') # pylint: disable=no-member
-        
-    if test_stat != None:
-        ax.axvline(test_stat, color='C3', lw=1.3, label='test stat') # test_stat vertical, red line
-        ax.axhline(rv.cdf(test_stat), color='C3', lw=1.3) # test_stat horizontal, red line
-    
-    if mean:
-        ax.axvline(rv.mean(), color='C1', lw=1.3, label='mean') # mean, orange line
-    
-    if median:
-        ax.axvline(rv.median(), color='C2', lw=1.3, label='median') # median, green line
-    
-    if CI:
-        ax.axvline(rv.interval(conf_int)[0], color='C4', lw=1.3, label='CI') # CI lower, purple line
-        ax.axvline(rv.interval(conf_int)[1], color='C4', lw=1.3) # CI upper, purple line
-    
-    ax.legend(bbox_to_anchor=(1.05, 1))
-
-
-def KdePlot(data, test_stat=None, bw_adjust=None, clip=None, mean=False, median=False):
-    """Plots a kde for supplied data.
-
-    Args:
-        data (array-like): Data to be plotted. Needs to be a one-dimensional sequence.
-        test_stat (float, optional): Test stat to plot. Defaults to None.
-        bw_adjust (float, optional): Adjusts the bandwidth for the kde. Defaults to None.
-        clip (tuple, optional): Clips the data at the values given in the tuple. Defaults to None.
-        mean (bool, optional): If True plots a line at the mean. Defaults to False.
-        median (bool, optional): If True plots a line at the median. Defaults to False.
-    """
-    # Convert to an array
-    data = np.asarray(data)
-
-    # Set up figure (single plot)
-    fig,ax = plt.subplots()
-    fig.set_size_inches(8,6)
-
-    # Plot kde of the data
-    # Can include an orange line for the mean, 
-    # a green line for the median, 
-    # and a red line for the test stat
-    if (bw_adjust != None) and (clip != None):
-        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust, clip=clip)
-    
-    elif (bw_adjust == None) and (clip != None):
-        sns.kdeplot(data, lw=2, clip=clip)
-    
-    elif (bw_adjust != None) and (clip == None):
-        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust)
-    
-    else:
-        sns.kdeplot(data, lw=2)
-        
-    if test_stat != None:
-        ax.axvline(test_stat, color='C3', lw=1.3, label='test stat') # test_stat vertical, red line
-    
-    if mean:
-        ax.axvline(np.mean(data), color='C1', lw=1.3, label='mean') # mean, orange line
-    
-    if median:
-        ax.axvline(np.median(data), color='C2', lw=1.3, label='median') # median, green line
-    
-    ax.legend(bbox_to_anchor=(1.25, 1))
 
 
 def DollarThousandsFormat(value):
