@@ -140,7 +140,7 @@ def ResampleInterSlope(x, y, iters=1000):
 
 def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
     ''' Calculate a correlation coefficient and a correlation confidence interval (CI) for two variables. 
-    Uses a parametric approach to calculate the CI. 
+    Uses a parametric approach to calculate the CI, which assumes bivariate normality. 
     A non-parametric CI can be obtained from the rv attribute of the correlation hypothesis test classes.
     
     Args:
