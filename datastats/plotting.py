@@ -96,7 +96,7 @@ def CdfPlot(data, ci=95, central_tendency_measure = 'mean', test_stat=None, x_la
     ax.set_xlabel(x_label)
     ax.set_ylabel('Cumulative Density')
     ax.set_title('CDF Plot')
-    
+
     if legend:
         ax.legend()
 
@@ -165,7 +165,7 @@ def KdePlot(data, bw_adjust=None, clip=None, ci=95,
     # Labels and titles
     ax.set_xlabel(x_label)
     ax.set_title('KDE Plot')
-        
+
     if legend:
         ax.legend()
     
@@ -284,6 +284,12 @@ def LinRegPlusResidualPlot(x, y, ci=95, x_label='x', y_label='y', res_plot_bins=
     axes[0].set_xlabel(x_label)
     axes[0].set_ylabel(y_label)
     axes[0].set_title('Regression Plot')
+
+    # get x and y limits to set aspect ratio
+    x_left, x_right = axes[0].get_xlim()
+    y_low, y_high = axes[0].get_ylim()
+    #set aspect ratio to 3:4
+    axes[0].set_aspect(abs((x_right-x_left)/(y_low-y_high))*0.75)
     
     # Build x_means and res_rvs (residual random variables) for the Residual Percentile Plot
     x_means, res_rvs = ResidualPercentilePlotData(x, y, res_plot_bins)
@@ -303,6 +309,12 @@ def LinRegPlusResidualPlot(x, y, ci=95, x_label='x', y_label='y', res_plot_bins=
     
     # Resize the residual plot's y-range to the same scale as that of the regression plot
     axes[1].set_ylim(-max(y)/2,max(y)/2)
+
+    # get x and y limits for aspect ratio
+    x_left, x_right = axes[1].get_xlim()
+    y_low, y_high = axes[1].get_ylim()
+    # set aspect ratio to 3:4
+    axes[1].set_aspect(abs((x_right-x_left)/(y_low-y_high))*0.75)
     
     plt.show()
 
