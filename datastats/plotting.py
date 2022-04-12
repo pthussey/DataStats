@@ -10,6 +10,7 @@ import seaborn as sns
 import scipy.stats as stats
 
 from .singlevar import PercentileRows
+from .singlevar import NormalProbabilityValues
 from .multivar import ResidualPercentilePlotData
 from .multivar import FitLine
 from .multivar import ResampleInterSlope
@@ -184,10 +185,10 @@ def NormProbPlot(data, y_label='Values'):
     data = np.asarray(data)
        
     # Get the normal probability plot values
-    xs, ys = dssv.NormalProbabilityValues(data)
+    xs, ys = NormalProbabilityValues(data)
     
     # Get the values to use to draw a fit line
-    fit_xs, fit_ys = dsmv.FitLine([min(xs),max(xs)], data.mean(), data.std())
+    fit_xs, fit_ys = FitLine([min(xs),max(xs)], data.mean(), data.std())
     
     # Set up figure (single plot)
     fig,ax = plt.subplots()
