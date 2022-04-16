@@ -62,17 +62,21 @@ def CdfPlot(data, ci=95, central_tendency_measure = 'mean', test_stat=None, x_la
         test_stat (float, optional): Test stat to plot. Defaults to None.
         x_label (string): The label to use on the x-axis. Defaults to 'x'.
         legend (boolean): Choose to include a legend or not. Defaults to True.
+    
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
     """
     # Compute an rv for the data
     val,cnt = np.unique(data, return_counts=True)
     rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
-    
+
     # Set up figure (single plot)    
     fig,ax = plt.subplots()
     fig.set_size_inches(8,6)
 
     # Plot the cdf
-    ax.plot(rv.xk, rv.cdf(rv.xk))
+    ax.plot(rv.xk, rv.cdf(rv.xk), lw=2)
 
     # Add lines for ci
     ax.axvline(rv.interval(ci/100)[0], color='C4', lw=1.3) # CI lower, purple line
@@ -101,7 +105,7 @@ def CdfPlot(data, ci=95, central_tendency_measure = 'mean', test_stat=None, x_la
     if legend:
         ax.legend()
 
-    plt.show()
+    return fig, ax
 
 
 def KdePlot(data, bw_adjust=None, clip=None, ci=95, 
@@ -119,6 +123,10 @@ def KdePlot(data, bw_adjust=None, clip=None, ci=95,
         test_stat (float, optional): Test stat to plot. Defaults to None.
         x_label (string): The label to use on the x-axis. Defaults to 'x'.
         legend (boolean): Choose to include a legend or not. Defaults to True.
+    
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
     """
     # Convert to an array
     data = np.asarray(data)
@@ -170,7 +178,7 @@ def KdePlot(data, bw_adjust=None, clip=None, ci=95,
     if legend:
         ax.legend()
     
-    plt.show()
+    return fig, ax
 
 
 def NormProbPlot(data, y_label='Values'):
@@ -180,6 +188,10 @@ def NormProbPlot(data, y_label='Values'):
     Args:
         data (array-like)): Data to be plotted. Must be one-dimensional.
         y_label (str): The label to use on the y-axis. Defaults to 'Values'.
+    
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
     """
     # Convert to an array
     data = np.asarray(data)
@@ -202,7 +214,7 @@ def NormProbPlot(data, y_label='Values'):
     ax.set_ylabel(y_label)
     ax.set_title('Normal Probability Plot')
     
-    plt.show()
+    return fig, ax
 
 
 def LinRegPlot(x, y, ci=95, x_label='x', y_label='y', plot_title='Regression Plot'):
@@ -217,6 +229,10 @@ def LinRegPlot(x, y, ci=95, x_label='x', y_label='y', plot_title='Regression Plo
         x_label (str): The label to use on the x-axis. Defaults to 'x'.
         y_label (str): The label to use on the y-axis. Defaults to 'y'.
         plot_title (str): The title for the plot. Defaults to 'Regression Plot'.
+    
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
     """
     # Perform the regression
     regress_results = stats.linregress(x, y)
@@ -244,7 +260,7 @@ def LinRegPlot(x, y, ci=95, x_label='x', y_label='y', plot_title='Regression Plo
     ax.set_ylabel(y_label)
     ax.set_title(plot_title)
     
-    plt.show()
+    return fig, ax
 
 
 def LinRegPlusResidualPlot(x, y, ci=95, x_label='x', y_label='y', res_plot_bins=10):
@@ -259,6 +275,10 @@ def LinRegPlusResidualPlot(x, y, ci=95, x_label='x', y_label='y', res_plot_bins=
         x_label (str): The label to use on the x-axis. Defaults to 'x'.
         y_label (str): The label to use on the y-axis. Defaults to 'y'.
         res_plot_bins (int): Number of bins for residual plot. Defaults to 10.
+    
+    Returns:
+        fig: The figure for the plot
+        axes: The axes for the plot
     """
     # Perform the regression
     regress_results = stats.linregress(x, y)
@@ -317,7 +337,7 @@ def LinRegPlusResidualPlot(x, y, ci=95, x_label='x', y_label='y', res_plot_bins=
     # set aspect ratio to 3:4
     axes[1].set_aspect(abs((x_right-x_left)/(y_low-y_high))*0.75)
     
-    plt.show()
+    return fig, axes
 
 
 def Despine(ax, spines='topright'):
