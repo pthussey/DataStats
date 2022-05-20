@@ -92,9 +92,9 @@ class HypothesisTest():
     def PlotCdf(self):
         """Draws a Cdf with a vertical line at the test stat.
         """      
-        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk), color='C3', lw=2) # pylint: disable=no-member
+        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk), color='C0', lw=2) # pylint: disable=no-member
         
-        plt.axvline(self.test_stat, color='C1', lw=1.3) # pylint: disable=no-member
+        plt.axvline(self.test_stat, color='C3', lw=1.3) # pylint: disable=no-member
 
 
 class HTMean(HypothesisTest):
