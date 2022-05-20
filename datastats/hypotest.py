@@ -94,11 +94,15 @@ class HypothesisTest():
         """      
         plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk), color='C0', lw=2) # pylint: disable=no-member
         
-        plt.axvline(self.test_stat, color='C3', lw=1.3) # pylint: disable=no-member
+        plt.axvline(self.test_stat, color='C3', lw=1.3, label='Test Stat') # pylint: disable=no-member
+
+        plt.legend(frameon=True, bbox_to_anchor=(1.04,1), loc="upper left")
+
+        plt.show()
 
 
 class HTMean(HypothesisTest):
-    """A one-sample mean hypothesis test. 
+    """This class is used to conduct one-sample mean hypothesis testing. 
     A test_stat to represent the null hypothesis must be provided. 
     This test can only produce a onesided pvalue.
 
@@ -195,7 +199,7 @@ class HTMean(HypothesisTest):
 
 
 class HTDiffMeansH0(HypothesisTest):
-    """A difference of means hypothesis test. 
+    """This class is used to conduct difference of means hypothesis testing. 
     Uses permutation to build a sampling distribution that represents the null hypothesis.
     Accepts data as a list or tuple of two groups of data (eg. (group1, group2)).
 
@@ -332,7 +336,7 @@ class HTDiffMeansH0(HypothesisTest):
 
 
 class HTDiffMeansHa(HypothesisTest):
-    """A difference of means hypothesis test. 
+    """This class is used to conduct difference of means hypothesis testing. 
     Uses resampling to build a sampling distribution that represents the alternative hypothesis.
     A test_stat to represent the null hypothesis must be provided. 
     This test can only produce a onesided pvalue.
@@ -441,7 +445,7 @@ class HTDiffMeansHa(HypothesisTest):
 
 
 class HTCorrelationH0(HypothesisTest):
-    """A correlation hypothesis test. 
+    """This class is used to conduct correlation hypothesis testing. 
     Uses permutation to build a sampling distribution that represents the null hypothesis.
     Accepts data as a list or tuple of two groups of data (eg. (x, y))
 
@@ -594,7 +598,7 @@ class HTCorrelationH0(HypothesisTest):
 
 
 class HTCorrelationHa(HypothesisTest):
-    """A correlation hypothesis test. 
+    """This class is used to conduct correlation hypothesis testing. 
     Uses resampling of x, y pairs to build a sampling distribution of correlation statistics
     that represents the alternative hypothesis of correlation existing between the variables.
     A test_stat to represent the null hypothesis must be provided. 
@@ -718,7 +722,7 @@ class HTCorrelationHa(HypothesisTest):
 
 
 class HTChiSquare(HypothesisTest):
-    """A chi square hypothesis test. 
+    """This class is used to conduct chi square hypothesis testing. 
     Uses resampling of the expected sequence to simulate the null hypothesis 
     and build the null hypothesis chi square statistic sampling distribution. 
     Accepts data in the form of a list or tuple of two sequences (observed, expected).
@@ -843,7 +847,7 @@ class HTChiSquare(HypothesisTest):
 
 
 class HTChiSquareContingency(HypothesisTest):
-    """A chi square contingency table hypothesis test. 
+    """This class is used to conduct chi square contingency table hypothesis testing. 
     Uses resampling of the expected sequence to simulate the null hypothesis 
     and build the null hypothesis sampling distribution. 
     Accepts data in the form of a single observed contingency table (array-like).
@@ -968,7 +972,7 @@ class HTChiSquareContingency(HypothesisTest):
 
 
 class HTOnewayAnova(HypothesisTest):
-    """A one-way ANOVA hypothesis test. 
+    """This class is used to conduct one-way ANOVA hypothesis tesing. 
     Uses permutation of the supplied data sequences to build the null hypothesis 
     and f-statistic sampling distribution. 
     Accepts data in the form of a list of data sequences (group_1, group_2... group_n).
@@ -1108,8 +1112,7 @@ def AnovaPostHoc(data, labels=None, alpha=0.05):
     the DataFrameToList function in the DataStats singlevar module 
     can be used to get the data into the format needed for use in this function. 
     This is the equivalent of using the pairwise_tukeyhsd function from statsmodels.stats.multicomp.
-    
-    
+        
     Args
     ----
     data (array-like):
