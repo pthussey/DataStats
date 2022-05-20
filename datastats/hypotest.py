@@ -12,7 +12,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 import scipy.stats as stats
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 from collections import Counter
 
@@ -93,7 +92,7 @@ class HypothesisTest():
     def PlotCdf(self):
         """Draws a Cdf with a vertical line at the test stat.
         """      
-        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk), color='C0', lw=2) # pylint: disable=no-member
+        plt.plot(self.rv.xk, self.rv.cdf(self.rv.xk), color='C3', lw=2) # pylint: disable=no-member
         
         plt.axvline(self.test_stat, color='C1', lw=1.3) # pylint: disable=no-member
 
@@ -1099,16 +1098,27 @@ def ChiSquareContribution(obs, exp):
     return (obs_array - exp_array)**2/exp_array
 
 
-def AnovaPostHoc(data, alpha=0.05):
+def AnovaPostHoc(data, labels=None, alpha=0.05):
     """Performs ANOVA post-hoc analysis using a difference of means hypothesis test 
     on each possible pairing of supplied data sequences.
     This analysis is used to determine which pairs 
-    have statistically significant differences in their means
+    have statistically significant differences in their means. 
+    If starting from a DataFrame that has the data groups 
+    and their corresponding values in long format, 
+    the DataFrameToList function in the DataStats singlevar module 
+    can be used to get the data into the format needed for use in this function. 
+    This is the equivalent of using the pairwise_tukeyhsd function from statsmodels.stats.multicomp.
+    
     
     Args
     ----
     data (array-like):
         A list or tuple of data sequences (group_1, group_2... group_n)
+    labels (array-like):
+        A list or tuple containing the labels for each group in the data. 
+        The number of labels must equal the number of groups 
+        and must be in the correct order to match up with each group. 
+        If no labels are given then numerical labels are used by default.
     alpha (float)
         The family wise error rate (FWER)
         Must be between 0 and 1. Defaults to 0.05.
@@ -1119,7 +1129,7 @@ def AnovaPostHoc(data, alpha=0.05):
         A tuple of tuples containing the results for each pairing of sequences. 
         The results can be printed in an easy-to-read format using a for loop. 
         The results display three pieces of information:
-        1) The pairing
+        1) The pairing, uses labels if provided
         2) The pvalue for the pairing
         3) Whether the pvalue is significant or not (Y or N)
            * The significance level is determined by comparison of the pvalue 
@@ -1128,46 +1138,38 @@ def AnovaPostHoc(data, alpha=0.05):
     corrected_alpha:
         The experiment-wise significance level
     """
+    # Calculate the experiment-wise significance level
     num_comparisons = int(factorial(len(data))/(2*factorial(len(data)-2)))
     corrected_alpha = alpha/num_comparisons
-    enum_data = enumerate(data)
-    
+
+    # Instantiate a results list
     results=[]
-    for pair in combinations(enum_data, 2):
-        test = HTDiffMeansH0((pair[0][1], pair[1][1]))
-        pvalue = test.PValue()
-        significant = 'Y' if pvalue < corrected_alpha else 'N'
-        results.append(((pair[0][0], pair[1][0]), '{:.3f}'.format(pvalue), significant))
+    
+    # Compute the results in the case that labels have been provided
+    if labels is not None:
+        if len(data) != len(labels):
+            raise Exception ("The number of labels must equal the number of data groups.")
+            
+        zip_data = zip(labels, data)
+        
+        for pair in combinations(zip_data, 2):
+            test = HTDiffMeansH0((pair[0][1], pair[1][1]))
+            pvalue = test.PValue()
+            significant = 'Y' if pvalue < corrected_alpha else 'N'
+            results.append(((pair[0][0], pair[1][0]), '{:.3f}'.format(pvalue), significant))
+        
+    # Compute the results in the case that labels have not been provided
+    else:
+        
+        enum_data = enumerate(data)
+        
+        for pair in combinations(enum_data, 2):
+            test = HTDiffMeansH0((pair[0][1], pair[1][1]))
+            pvalue = test.PValue()
+            significant = 'Y' if pvalue < corrected_alpha else 'N'
+            results.append(((pair[0][0], pair[1][0]), '{:.3f}'.format(pvalue), significant))
     
     return results, corrected_alpha
-
-
-def PairwiseTukeyHsd(data, alpha=0.05):
-    """Uses pairwise Tukey HSD to perform ANOVA post-hoc analysis 
-    to determine which paired comparisons have differences that are significant. 
-    This function uses statsmodels pairwise_tukeyhsd.
-    Accepts data in the form of a list of data sequences (eg.(group_1, group_2... group_n)).
-    The returned object can be printed to show the results.
-    
-    Args
-    ----
-    data (array-like):
-        A list or tuple of data sequences (group_1, group_2... group_n)
-    alpha (float)
-        The family wise error rate (FWER)
-    
-    Returns
-    -------
-    A TukeyHSDResults object 
-    """
-    x = []
-    label = []
-    
-    for grp_num in range(len(data)):
-        x.extend(data[grp_num])
-        label.extend([grp_num]*len(data[grp_num]))
-
-    return pairwise_tukeyhsd(np.array(x), np.array(label), alpha=alpha)
 
 
 def main():

@@ -138,6 +138,44 @@ def ResampleInterSlope(x, y, iters=1000):
     return np.array(inters), np.array(slopes), fit_ys_list
 
 
+def PercentileRow(array, p):
+    """Selects the row from a sorted array that maps to percentile p.
+
+    p: float 0--100
+
+    returns: NumPy array (one row)
+    """
+    rows, _ = array.shape
+    index = int(rows * p / 100)
+    return array[index,]
+
+
+def PercentileRows(ys_seq, percents = [2.5, 97.5]):
+    """Given a collection of lines, selects percentiles along vertical axis. 
+    This can be used after building a list of sequences using resampling, 
+    and then the returned rows can be plotted (fill between) to produce a CI.
+
+    For example, if ys_seq contains simulation results such as lists of y values for fit lines, 
+    and percents contains ([2.5, 97.5]), the result would be a 95% CI for the simulation results.
+
+    ys_seq: sequence of lines (y values)
+    percents: list of percentiles (0-100) to select, defaults to [2.5, 97.5] for a 95% CI
+
+    returns: list of NumPy arrays, one for each percentile
+    """
+    nrows = len(ys_seq)
+    ncols = len(ys_seq[0])
+    array = np.zeros((nrows, ncols))
+
+    for i, ys in enumerate(ys_seq):
+        array[i,] = ys
+
+    array = np.sort(array, axis=0)
+
+    percentile_rows = [PercentileRow(array, p) for p in percents]
+    return percentile_rows
+
+
 def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
     ''' Calculate a correlation coefficient and a correlation confidence interval (CI) for two variables. 
     Uses a parametric approach to calculate the CI, which assumes bivariate normality. 

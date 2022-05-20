@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.stats as stats
 
-from .singlevar import PercentileRows
+from math import ceil
+
+from .multivar import PercentileRows
 from .singlevar import NormalProbabilityValues
 from .multivar import ResidualPercentilePlotData
 from .multivar import FitLine
@@ -48,173 +50,6 @@ def SetParams(font='Malgun Gothic', basesize=12, basecolor='0.4', style='seaborn
     plt.rcParams["xtick.bottom"] = True
     plt.rcParams["axes.labelpad"] = basesize
     plt.rcParams['axes.unicode_minus'] = False if font == 'Malgun Gothic' else True
-
-
-def CdfPlot(data, ci=95, central_tendency_measure = 'mean', test_stat=None, x_label = 'x', legend=True):
-    """Plots a CDF for supplied data. 
-    Especially useful for looking at sampling distribution data. 
-    Includes parameters to add lines for a ci, measures of central tendency, and a test statistic.
-
-    Args:
-        data (array-like): Data to be plotted. Must be one-dimensional sequence.
-        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
-        central_tendency_measure: Choose 'mean', 'median', or 'both'. Defaults to 'mean'.
-        test_stat (float, optional): Test stat to plot. Defaults to None.
-        x_label (string): The label to use on the x-axis. Defaults to 'x'.
-        legend (boolean): Choose to include a legend or not. Defaults to True.
-    
-    Returns:
-        fig: The figure for the plot
-        ax: The axis for the plot
-    """
-    # Compute an rv for the data
-    val,cnt = np.unique(data, return_counts=True)
-    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
-
-    # Set up figure (single plot)    
-    fig,ax = plt.subplots()
-    fig.set_size_inches(8,6)
-
-    # Plot the cdf
-    ax.plot(rv.xk, rv.cdf(rv.xk), lw=2)
-
-    # Add lines for ci
-    ax.axvline(rv.interval(ci/100)[0], color='C4', lw=1.3) # CI lower, purple line
-    ax.axvline(rv.interval(ci/100)[1], color='C4', lw=1.3, label='CI') # CI upper, purple line
-    
-    # Add lines for central tendency measures
-    if central_tendency_measure == 'mean':
-        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
-    
-    elif central_tendency_measure == 'median':
-        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
-    
-    elif central_tendency_measure == 'both':
-        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
-        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
-    
-    # Add line for test stat
-    if test_stat is not None:
-        ax.axvline(test_stat, color='C3', lw=1.3, label='Test Stat') # test statistic, red line
-    
-     # Labels and titles
-    ax.set_xlabel(x_label)
-    ax.set_ylabel('Cumulative Density')
-    ax.set_title('CDF Plot')
-
-    if legend:
-        ax.legend()
-
-    return fig, ax
-
-
-def KdePlot(data, bw_adjust=None, clip=None, ci=95, 
-            central_tendency_measure = 'mean', test_stat=None, x_label='x', legend=True):
-    """Plots a KDE for supplied data using Seaborn kdeplot. 
-    Especially useful for looking at sampling distribution data.  
-    Includes parameters to add lines for a ci, measures of central tendency, and a test statistic.
-
-    Args:
-        data (array-like): Data to be plotted. Must be one-dimensional sequence.
-        bw_adjust (float, optional): Adjusts kde bandwidth. Defaults to None.
-        clip (tuple, optional): Clips data at values in the tuple. Defaults to None.
-        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
-        central_tendency_measure: Choose 'mean', 'median', or 'both'. Defaults to 'mean'.
-        test_stat (float, optional): Test stat to plot. Defaults to None.
-        x_label (string): The label to use on the x-axis. Defaults to 'x'.
-        legend (boolean): Choose to include a legend or not. Defaults to True.
-    
-    Returns:
-        fig: The figure for the plot
-        ax: The axis for the plot
-    """
-    # Convert to an array
-    data = np.asarray(data)
-    
-    # Compute an rv for the data, used for ci
-    val,cnt = np.unique(data, return_counts=True)
-    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
-
-    # Set up figure (single plot)
-    fig,ax = plt.subplots()
-    fig.set_size_inches(8,6)
-
-    # Change settings if needed and plot kde
-    if (bw_adjust != None) and (clip != None):
-        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust, clip=clip)
-    
-    elif (bw_adjust == None) and (clip != None):
-        sns.kdeplot(data, lw=2, clip=clip)
-    
-    elif (bw_adjust != None) and (clip == None):
-        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust)
-    
-    else:
-        sns.kdeplot(data, lw=2)
-    
-    # Add lines for ci
-    ax.axvline(rv.interval(ci/100)[0], color='C4', lw=1.3) # CI lower, purple line
-    ax.axvline(rv.interval(ci/100)[1], color='C4', lw=1.3, label='CI') # CI upper, purple line
-    
-    # Add lines for central tendency measures
-    if central_tendency_measure == 'mean':
-        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
-    
-    elif central_tendency_measure == 'median':
-        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
-    
-    elif central_tendency_measure == 'both':
-        ax.axvline(np.mean(data), color='C1', lw=1.3, label='Mean') # mean, orange line
-        ax.axvline(np.median(data), color='C2', lw=1.3, label='Median') # median, green line
-    
-    # Add line for test stat
-    if test_stat is not None:
-        ax.axvline(test_stat, color='C3', lw=1.3, label='Test Stat') # test_stat, red line
-
-    # Labels and titles
-    ax.set_xlabel(x_label)
-    ax.set_title('KDE Plot')
-
-    if legend:
-        ax.legend()
-    
-    return fig, ax
-
-
-def NormProbPlot(data, y_label='Values'):
-    """Generates a normal probability plot for supplied data. 
-     Especially useful for looking at sampling distribution data. 
-
-    Args:
-        data (array-like)): Data to be plotted. Must be one-dimensional.
-        y_label (str): The label to use on the y-axis. Defaults to 'Values'.
-    
-    Returns:
-        fig: The figure for the plot
-        ax: The axis for the plot
-    """
-    # Convert to an array
-    data = np.asarray(data)
-       
-    # Get the normal probability plot values
-    xs, ys = NormalProbabilityValues(data)
-    
-    # Get the values to use to draw a fit line
-    fit_xs, fit_ys = FitLine([min(xs),max(xs)], data.mean(), data.std())
-    
-    # Set up figure (single plot)
-    fig,ax = plt.subplots()
-    fig.set_size_inches(8,6)
-    
-    ax.plot(fit_xs, fit_ys, color='0.8')
-    ax.plot(xs, ys)
-    
-    # Labels and titles
-    ax.set_xlabel("Standard Deviations from the Mean")
-    ax.set_ylabel(y_label)
-    ax.set_title('Normal Probability Plot')
-    
-    return fig, ax
 
 
 def LinRegPlot(x, y, ci=95, x_label='x', y_label='y', plot_title='Regression Plot'):
@@ -340,12 +175,329 @@ def LinRegPlusResidualPlot(x, y, ci=95, x_label='x', y_label='y', res_plot_bins=
     return fig, axes
 
 
-def Despine(ax, spines='topright'):
+def CdfPlot(data, ci=95, central_tendency_measure = 'mean', test_stat=None, x_label = 'x', legend=True):
+    """Plots a CDF for supplied data. 
+    Especially useful for looking at sampling distribution data. 
+    Includes parameters to add lines for a ci, measures of central tendency, and a test statistic.
+
+    Args:
+        data (array-like): Data to be plotted. Must be one-dimensional.
+        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
+        central_tendency_measure: Choose 'mean', 'median', or 'both'. Defaults to 'mean'.
+        test_stat (float, optional): Test stat to plot. Defaults to None.
+        x_label (string): The label to use on the x-axis. Defaults to 'x'.
+        legend (boolean): Choose to include a legend or not. Defaults to True.
+    
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
+    """
+        # Convert to an array
+    data = np.asarray(data)
+
+    # Remove any nans
+    data = data[~np.isnan(data)]
+    
+    # Compute an rv for the data
+    val,cnt = np.unique(data, return_counts=True)
+    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
+
+    # Set up figure (single plot)    
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+
+    # Plot the cdf
+    ax.plot(rv.xk, rv.cdf(rv.xk), lw=2)
+
+    # Add lines for ci
+    ax.axvline(rv.interval(ci/100)[0], color='C4', lw=1.3) # CI lower, purple line
+    ax.axvline(rv.interval(ci/100)[1], color='C4', lw=1.3, label='CI') # CI upper, purple line
+    
+    # Add lines for central tendency measures
+    if central_tendency_measure == 'mean':
+        ax.axvline(rv.mean(), color='C1', lw=1.3, label='Mean') # mean, orange line
+    
+    elif central_tendency_measure == 'median':
+        ax.axvline(rv.median(), color='C2', lw=1.3, label='Median') # median, green line
+    
+    elif central_tendency_measure == 'both':
+        ax.axvline(rv.mean(), color='C1', lw=1.3, label='Mean') # mean, orange line
+        ax.axvline(rv.median(), color='C2', lw=1.3, label='Median') # median, green line
+    else:
+        raise Exception('Must enter \'mean\', \'median\', or \'both\' for kind parameter.')
+    
+    # Add line for test stat
+    if test_stat is not None:
+        ax.axvline(test_stat, color='C3', lw=1.3, label='Test Stat') # test statistic, red line
+    
+     # Labels and titles
+    ax.set_xlabel(x_label)
+    ax.set_ylabel('Cumulative Density')
+    ax.set_title('CDF Plot')
+
+    if legend:
+        ax.legend()
+
+    return fig, ax
+
+
+def KdePlot(data, bw_adjust=None, clip=None, ci=95, 
+            central_tendency_measure = 'mean', test_stat=None, x_label='x', legend=True):
+    """Plots a KDE for supplied data using Seaborn kdeplot. 
+    Especially useful for looking at sampling distribution data.  
+    Includes parameters to add lines for a ci, measures of central tendency, and a test statistic.
+
+    Args:
+        data (array-like): Data to be plotted. Must be one-dimensional.
+        bw_adjust (float, optional): Adjusts kde bandwidth. Defaults to None.
+        clip (tuple, optional): Clips data at values in the tuple. Defaults to None.
+        ci (float): The confidence interval. Must be between 0 and 100. Defaults to 95.
+        central_tendency_measure: Choose 'mean', 'median', or 'both'. Defaults to 'mean'.
+        test_stat (float, optional): Test stat to plot. Defaults to None.
+        x_label (string): The label to use on the x-axis. Defaults to 'x'.
+        legend (boolean): Choose to include a legend or not. Defaults to True.
+    
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
+    """
+    # Convert to an array
+    data = np.asarray(data)
+
+    # Remove any nans
+    data = data[~np.isnan(data)]
+    
+    # Compute an rv for the data, used for ci
+    val,cnt = np.unique(data, return_counts=True)
+    rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
+
+    # Set up figure (single plot)
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+
+    # Change settings if needed and plot kde
+    if (bw_adjust != None) and (clip != None):
+        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust, clip=clip)
+    
+    elif (bw_adjust == None) and (clip != None):
+        sns.kdeplot(data, lw=2, clip=clip)
+    
+    elif (bw_adjust != None) and (clip == None):
+        sns.kdeplot(data, lw=2, bw_adjust=bw_adjust)
+    
+    else:
+        sns.kdeplot(data, lw=2)
+    
+    # Add lines for ci
+    ax.axvline(rv.interval(ci/100)[0], color='C4', lw=1.3) # CI lower, purple line
+    ax.axvline(rv.interval(ci/100)[1], color='C4', lw=1.3, label='CI') # CI upper, purple line
+    
+    # Add lines for central tendency measures
+    if central_tendency_measure == 'mean':
+        ax.axvline(rv.mean(), color='C1', lw=1.3, label='Mean') # mean, orange line
+    
+    elif central_tendency_measure == 'median':
+        ax.axvline(rv.median(), color='C2', lw=1.3, label='Median') # median, green line
+    
+    elif central_tendency_measure == 'both':
+        ax.axvline(rv.mean(), color='C1', lw=1.3, label='Mean') # mean, orange line
+        ax.axvline(rv.median(), color='C2', lw=1.3, label='Median') # median, green line
+    else:
+        raise Exception('Must enter \'mean\', \'median\', or \'both\' for kind parameter.')
+    
+    # Add line for test stat
+    if test_stat is not None:
+        ax.axvline(test_stat, color='C3', lw=1.3, label='Test Stat') # test_stat, red line
+
+    # Labels and titles
+    ax.set_xlabel(x_label)
+    ax.set_title('KDE Plot')
+
+    if legend:
+        ax.legend()
+    
+    return fig, ax
+
+
+def NormProbPlot(data, y_label='Values'):
+    """Generates a normal probability plot for supplied data. 
+     Especially useful for looking at sampling distribution data. 
+
+    Args:
+        data (array-like)): Data to be plotted. Must be one-dimensional.
+        y_label (str): The label to use on the y-axis. Defaults to 'Values'.
+    
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
+    """
+    # Convert to an array
+    data = np.asarray(data)
+       
+    # Get the normal probability plot values
+    xs, ys = NormalProbabilityValues(data)
+    
+    # Get the values to use to draw a fit line
+    fit_xs, fit_ys = FitLine([min(xs),max(xs)], data.mean(), data.std())
+    
+    # Set up figure (single plot)
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+    
+    ax.plot(fit_xs, fit_ys, color='0.8')
+    ax.plot(xs, ys)
+    
+    # Labels and titles
+    ax.set_xlabel("Standard Deviations from the Mean")
+    ax.set_ylabel(y_label)
+    ax.set_title('Normal Probability Plot')
+    
+    return fig, ax
+
+
+def AllNumVarDensityPlot(variables, data, kind='cdf', central_tendency_measure='mean'):
+    """Generates a density plot for each numerical variable in a DataFrame.
+
+    Args:
+        variables (list): A list of the numerical variables in data (the supplied DataFrame)
+        data (pandas DataFrame): The DataFrame that contains the numerical variables.
+        kind (str, optional): The kind of density plot. Must be either 'cdf' or 'kde'. Defaults to 'cdf'.
+        central_tendency_measure (str, optional): Can choose between 'mean', 'median', or 'both'. Defaults to 'mean'.
+
+    Returns:
+        fig: The figure for the plot
+        axes: The axes for the plot
+    """
+    # Set up number of rows and height for the figure
+    numvars = len(variables)
+    nrows = ceil(numvars / 2)
+    fig_size_y = 3 * nrows
+    fig, axes = plt.subplots(nrows=nrows, ncols=2, sharex=False)
+    fig.set_size_inches(8, fig_size_y)     
+    
+    # Plot each variable
+    for i, var in enumerate(variables):
+        row = i//2
+        pos = i % 2
+        if numvars <= 2:
+            ax=axes[pos]
+        else:
+            ax=axes[row][pos]
+        
+        # Compute rv for each variable (used in cdf and in central tendency measures)
+        val,cnt = np.unique(data[var].dropna(), return_counts=True)
+        var_rv = stats.rv_discrete(values=(val,cnt/sum(cnt)))
+        
+        # Plot either cdf or kde depending on the kind parameter
+        if kind.lower() == 'cdf':
+            ax.plot(var_rv.xk, var_rv.cdf(var_rv.xk))
+            ax.set_ylabel('Cumulative Density')
+        elif kind.lower() == 'kde':
+            sns.kdeplot(data[var], lw=2, ax=ax)
+            ax.set_xlabel('')
+        else:
+            raise Exception('Must enter either \'cdf\' or \'kde\' for kind parameter.')
+        
+        # Add lines for central tendency measures
+        if central_tendency_measure == 'mean':
+            ax.axvline(var_rv.mean(), color='C1', lw=1.3, label='Mean') # mean, orange line
+
+        elif central_tendency_measure == 'median':
+            ax.axvline(var_rv.median(), color='C2', lw=1.3, label='Median') # median, green line
+
+        elif central_tendency_measure == 'both':
+            ax.axvline(var_rv.mean(), color='C1', lw=1.3, label='Mean') # mean, orange line
+            ax.axvline(var_rv.median(), color='C2', lw=1.3, label='Median') # median, green line
+        else:
+            raise Exception('Must enter \'mean\', \'median\', or \'both\' for kind parameter.')
+        
+        ax.set_title(var)
+        
+    plt.tight_layout()
+    
+    return fig,axes
+
+
+def AllCatVarCountPlot(variables, data):
+    """Generates a count plot for each categorical variable in a DataFrame.
+
+    Args:
+        variables (list): A list of the categorical variables in data (the supplied DataFrame)
+        data (pandas DataFrame): The DataFrame that contains the categorical variables.
+
+    Returns:
+        fig: The figure for the plot
+        axes: The axes for the plot
+    """
+    # Set up number of rows and height for the figure
+    numvars = len(variables)
+    nrows = ceil(numvars / 2)
+    fig_size_y = 3 * nrows
+    fig, axes = plt.subplots(nrows=nrows, ncols=2, sharex=False)
+    fig.set_size_inches(8, fig_size_y)     
+    
+    # Plot each variable
+    for i, var in enumerate(variables):
+        row = i//2
+        pos = i % 2
+        if numvars <= 2:
+            ax=axes[pos]
+        else:
+            ax=axes[row][pos]
+        
+        sns.countplot(x=var, data=data, ax=ax)
+        ax.set_title(var)
+        ax.set_xlabel('')
+        
+    plt.tight_layout()
+    
+    return fig,axes
+
+
+def TwoCatProportionPlot(x, hue, data):
+    """Computes and plots the proportions (percentages) of one categorical variable within another. 
+    An example would be the proportion of males and females within different population groups.
+
+    Args:
+        x (str): The x variable for the bar plot.
+        hue (str): The variable that will split the bars into different colors within each x variable group.
+        data (pandas DataFrame): The DataFrame that contains the x and hue variables.
+
+    Returns:
+        fig: The figure for the plot
+        ax: The axis for the plot
+    """
+    # Set up figure and axis
+    fig,ax = plt.subplots()
+    fig.set_size_inches(8,6)
+    
+    # Build DataFrame for data to be plotted
+    plot_df = (data.groupby(x)[hue]
+               .value_counts(normalize=True)
+               .mul(100)
+               .rename('percentage')
+               .reset_index()
+               .rename(columns={'level_1':hue}))
+    
+    # Plot the data
+    sns.barplot(x=x, y='percentage', hue=hue, data=plot_df, ax=ax)
+    
+    # Set y limits
+    ax.set_ylim(0,100)
+    
+    return fig,ax
+
+
+def Despine(ax, spines='topright', remove_y_ticks=False, remove_y_label=False, remove_x_ticks=False, remove_x_label=False):
     """Removes the spines surrounding a plot.
 
     Args:
         ax: The designated axis. If using seaborn save the plot to an axis variable. ex) g = sns.lineplot()
-        spines (str, optional): Can choose 'all' or 'toprightleft'. Defaults to 'topright'.
+        spines (str, optional): Can choose 'all', 'toprightleft' or 'toprightbottom'. Defaults to 'topright'.
+        remove_y_ticks: Remove values on the y-axis.
+        remove_y_label: Remove the label on the y-axis.
+        remove_x_ticks: Remove values on the x-axis.
+        remove_x_label: Remove the label on the x-axis.
     """
     if spines == 'all':
         ax.spines['right'].set_visible(False)
@@ -353,11 +505,35 @@ def Despine(ax, spines='topright'):
         ax.spines['left'].set_visible(False)
         ax.spines['bottom'].set_visible(False)
         ax.tick_params(axis='both', length=0.0)
+        if remove_y_ticks:
+            ax.yaxis.set_ticks([])
+        if remove_y_label:
+            ax.set_ylabel('')
+        if remove_x_ticks:
+            ax.xaxis.set_ticks([])
+        if remove_x_label:
+            ax.set_xlabel('')
+    
     elif spines == 'toprightleft':
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         ax.spines['left'].set_visible(False)
         ax.tick_params(axis='y', length=0.0)
+        if remove_y_ticks:
+            ax.yaxis.set_ticks([])
+        if remove_y_label:
+            ax.set_ylabel('')
+    
+    elif spines == 'toprightbottom':
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.tick_params(axis='x', length=0.0)
+        if remove_x_ticks:
+            ax.xaxis.set_ticks([])
+        if remove_x_label:
+            ax.set_xlabel('')
+    
     else:
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
@@ -379,28 +555,29 @@ def RemoveGridSpinesAxes(ax):
     ax.get_yaxis().set_visible(False)
 
 
-def AnnotateBars(rects, color='0.4', orient='v', offset=3, weight='normal', fontsize=12, digits=0, percent=False):
+def AnnotateBars(rects, color='0.4', orient='v', offset=3, weight='normal', fontsize=12, decimal_digits=0, percent=False):
     """Adds a text label to each bar in a bar plot. 
-    If using seaborn, must save plot to a variable 
-    and pass the patches (ex. g.patches) for the rects parameter.
+    If using seaborn, must save the plot to a variable to gain access to the axis.  
+    Pass the patches as ax.patches for the rects parameter. 
+    It's also possible to select specific bars only using selection or slicing (eg. ax.patches[4:]).
 
     Args:
-        rects (matplotib patches): The bars to label.
+        rects (matplotib patches): The bars to label. Pass as ax.patches.
         color (str, optional): Label color. Defaults to '0.4'.
         orient (str, optional): Orientation of the bars to be labelled. Defaults to 'v'.
         offset (int, optional): Offset from the top / right edge of the bars. Defaults to 3.
         weight (str, optional): Font weight. Defaults to 'normal'.
         fontsize (int, optional): Font size. Defaults to 12.
-        digits (int, optional): Number of digits after the decimal point. Defaults to 0.
+        decimal_digits (int, optional): Number of digits after the decimal point. Defaults to 0.
         percent (bool, optional): Choose to add percent sign. Defaults to False.
     """
     if orient == 'h':
         for rect in rects:
             width = rect.get_width()
             if percent == True:
-                form='{:.'+str(digits)+'f'+'}%'
+                form='{:.'+str(decimal_digits)+'f'+'}%'
             else:
-                form='{:.'+str(digits)+'f'+'}'
+                form='{:.'+str(decimal_digits)+'f'+'}'
             plt.annotate(form.format(width),
                     xy=(width, rect.get_y() + rect.get_height() / 2),
                     xytext=(offset, 0),
@@ -412,9 +589,9 @@ def AnnotateBars(rects, color='0.4', orient='v', offset=3, weight='normal', font
         for rect in rects:
             height = rect.get_height()
             if percent == True:
-                form='{:.'+str(digits)+'f'+'}%'
+                form='{:.'+str(decimal_digits)+'f'+'}%'
             else:
-                form='{:.'+str(digits)+'f'+'}'
+                form='{:.'+str(decimal_digits)+'f'+'}'
             plt.annotate(form.format(height),
                         xy=(rect.get_x() + rect.get_width() / 2, height),
                         xytext=(0, offset),
@@ -424,7 +601,7 @@ def AnnotateBars(rects, color='0.4', orient='v', offset=3, weight='normal', font
                         weight=weight, color=color)
 
 
-def AnnotatePointAbove(coord, color='0.4', weight='normal', fontsize=12, ha='center', offset=10, digits=1):
+def AnnotatePointAbove(coord, color='0.4', weight='normal', fontsize=12, ha='center', offset=10, decimal_digits=1):
     """Adds a label above a point (x,y), for the y-value of the point. Must pass the coordinate as a tuple.
 
     Args:
@@ -434,9 +611,9 @@ def AnnotatePointAbove(coord, color='0.4', weight='normal', fontsize=12, ha='cen
         fontsize (int, optional): Font size. Defaults to 12.
         ha (str, optional): Horizontal alignment of the label. Defaults to 'center'.
         offset (int, optional): Offset from the coordinate. Defaults to 10.
-        digits (int, optional): Number of digits after the decimal point. Defaults to 1.
+        decimal_digits (int, optional): Number of digits after the decimal point. Defaults to 1.
     """  
-    form = '{:.' + str(digits) + 'f}'
+    form = '{:.' + str(decimal_digits) + 'f}'
     plt.annotate(form.format(coord[1]),
                  xy=(coord), xytext=(0, offset),
                  textcoords="offset points",
@@ -445,7 +622,7 @@ def AnnotatePointAbove(coord, color='0.4', weight='normal', fontsize=12, ha='cen
                  weight=weight, color=color)
 
 
-def AnnotatePointBelow(coord, color='0.4', weight='normal', fontsize=12, ha='center', offset=10, digits=1):
+def AnnotatePointBelow(coord, color='0.4', weight='normal', fontsize=12, ha='center', offset=10, decimal_digits=1):
     """Adds a label below a point (x,y), for the y-value of the point. Must pass the coordinate as a tuple.
 
     Args:
@@ -455,9 +632,9 @@ def AnnotatePointBelow(coord, color='0.4', weight='normal', fontsize=12, ha='cen
         fontsize (int, optional): Font size. Defaults to 12.
         ha (str, optional): Horizontal alignment of the label. Defaults to 'center'.
         offset (int, optional): Offset from the coordinate. Defaults to 10.
-        digits (int, optional): Number of digits after the decimal point. Defaults to 1.
+        decimal_digits (int, optional): Number of digits after the decimal point. Defaults to 1.
     """ 
-    form = '{:.' + str(digits) + 'f}'
+    form = '{:.' + str(decimal_digits) + 'f}'
     plt.annotate(form.format(coord[1]),
                  xy=(coord), xytext=(0, -offset),
                  textcoords="offset points",
@@ -466,7 +643,7 @@ def AnnotatePointBelow(coord, color='0.4', weight='normal', fontsize=12, ha='cen
                  weight=weight, color=color)
 
 
-def AnnotatePointLeft(coord, color='0.4', weight='normal', fontsize=12, va='center', offset=10, digits=1):
+def AnnotatePointLeft(coord, color='0.4', weight='normal', fontsize=12, va='center', offset=10, decimal_digits=1):
     """Adds a label to the left of a point (x,y), for the y-value of the point. Must pass the coordinate as a tuple.
 
     Args:
@@ -476,9 +653,9 @@ def AnnotatePointLeft(coord, color='0.4', weight='normal', fontsize=12, va='cent
         fontsize (int, optional): Font size. Defaults to 12.
         ha (str, optional): Horizontal alignment of the label. Defaults to 'center'.
         offset (int, optional): Offset from the coordinate. Defaults to 10.
-        digits (int, optional): Number of digits after the decimal point. Defaults to 1.
+        decimal_digits (int, optional): Number of digits after the decimal point. Defaults to 1.
     """ 
-    form = '{:.' + str(digits) + 'f}'
+    form = '{:.' + str(decimal_digits) + 'f}'
     plt.annotate(form.format(coord[1]),
                  xy=(coord), xytext=(-offset, 0),
                  textcoords="offset points",
@@ -487,7 +664,7 @@ def AnnotatePointLeft(coord, color='0.4', weight='normal', fontsize=12, va='cent
                  weight=weight, color=color)
 
 
-def AnnotatePointRight(coord, color='0.4', weight='normal', fontsize=12, va='center', offset=10, digits=1):
+def AnnotatePointRight(coord, color='0.4', weight='normal', fontsize=12, va='center', offset=10, decimal_digits=1):
     """Adds a label to the right of a point (x,y), for the y-value of the point. Must pass the coordinate as a tuple.
 
     Args:
@@ -497,9 +674,9 @@ def AnnotatePointRight(coord, color='0.4', weight='normal', fontsize=12, va='cen
         fontsize (int, optional): Font size. Defaults to 12.
         ha (str, optional): Horizontal alignment of the label. Defaults to 'center'.
         offset (int, optional): Offset from the coordinate. Defaults to 10.
-        digits (int, optional): Number of digits after the decimal point. Defaults to 1.
+        decimal_digits (int, optional): Number of digits after the decimal point. Defaults to 1.
     """ 
-    form = '{:.' + str(digits) + 'f}'
+    form = '{:.' + str(decimal_digits) + 'f}'
     plt.annotate(form.format(coord[1]),
                  xy=(coord), xytext=(offset, 0),
                  textcoords="offset points",
@@ -508,17 +685,18 @@ def AnnotatePointRight(coord, color='0.4', weight='normal', fontsize=12, va='cen
                  weight=weight, color=color)
 
 
-def AnnotateLine(xs, ys, color='0.4', weight='normal', fontsize=12, offset=10, digits=1):
-    """Adds labels to all the points on a line.
+def AnnotateLineYs(xs, ys, color='0.4', weight='normal', fontsize=12, offset=10, decimal_digits=1):
+    """Adds y coordinate annotations to all the points on a line. 
+    Automatically adjusts annotation placement based on angles of incoming and outgoing lines of the points.
 
     Args:
         xs (array-like): Sequence of xs
-        ys ([type]): Sequence of ys
+        ys (array-like): Sequence of ys
         color (str, optional): Label color. Defaults to '0.4'.
         weight (str, optional): Font weight. Defaults to 'normal'.
         fontsize (int, optional): Font size. Defaults to 12.
         offset (int, optional): Offset from the coordinate. Defaults to 10.
-        digits (int, optional): Number of digits after the decimal point. Defaults to 1.
+        decimal_digits (int, optional): Number of digits after the decimal point. Defaults to 1.
     """
     d = dict(zip(range(len(xs)), list(zip(xs,ys)))) # Dict of coordinates
     
@@ -527,32 +705,32 @@ def AnnotateLine(xs, ys, color='0.4', weight='normal', fontsize=12, offset=10, d
             if d[k+1][1] > d[k][1]:
                 AnnotatePointBelow(coord, color=color,
                                    weight=weight,fontsize=fontsize,
-                                   offset=offset, digits=digits)
+                                   offset=offset, decimal_digits=decimal_digits)
             else:
                 AnnotatePointAbove(coord, color=color,
                                    weight=weight, fontsize=fontsize,
-                                   offset=offset, digits=digits)
+                                   offset=offset, decimal_digits=decimal_digits)
                 
         elif k == len(xs)-1: # Annotate final point in the line
             if d[k-1][1] > d[k][1]:
                 AnnotatePointBelow(coord, color=color,
                                    weight=weight, fontsize=fontsize,
-                                   offset=offset, digits=digits)
+                                   offset=offset, decimal_digits=decimal_digits)
             else:
                 AnnotatePointAbove(coord, color=color,
                                    weight=weight, fontsize=fontsize,
-                                   offset=offset, digits=digits)
+                                   offset=offset, decimal_digits=decimal_digits)
                 
         else: # Annotate all other points
             if (d[k-1][1] <= d[k][1]) & (d[k+1][1] <= d[k][1]): # Lines form a peak at the point
                 AnnotatePointAbove(coord, color=color,
                                    weight=weight, fontsize=fontsize,
-                                   offset=offset, digits=digits)
+                                   offset=offset, decimal_digits=decimal_digits)
                 
             elif (d[k-1][1] > d[k][1]) & (d[k+1][1] > d[k][1]): # Lines form a trough at the point
                 AnnotatePointBelow(coord, color=color,
                                    weight=weight, fontsize=fontsize,
-                                   offset=offset, digits=digits)
+                                   offset=offset, decimal_digits=decimal_digits)
                 
             else:
                 # Vectors to use to determine where the annotation needs to go in edge cases
@@ -567,48 +745,44 @@ def AnnotateLine(xs, ys, color='0.4', weight='normal', fontsize=12, offset=10, d
                 out_hangle = np.math.atan2(np.linalg.det([v1,v3]), np.dot(v1,v3)) # The signed angle between v1 and v3
                 
                 if (d[k-1][1] <= d[k][1]) & (int_angle >= 0): # Incoming line slopes up and interior angle is positive
-                    if abs(np.degrees(in_hangle)) < 26: # Angle between incoming line and horizontal is small
-                        print(1, k, np.degrees(in_hangle))
+                    if abs(np.degrees(in_hangle)) < 27: # Angle between incoming line and horizontal is small
                         AnnotatePointAbove(coord, color=color, ha='right',
                                            weight=weight, fontsize=fontsize,
-                                           offset=offset, digits=digits)
+                                           offset=offset, decimal_digits=decimal_digits)
                     else:
-                        AnnotatePointLeft(coord, color=color,
+                        AnnotatePointLeft(coord, color=color, va='bottom',
                                           weight=weight, fontsize=fontsize,
-                                          offset=offset, digits=digits)
+                                          offset=offset, decimal_digits=decimal_digits)
                 
                 elif (d[k-1][1] <= d[k][1]) & (int_angle < 0): # Incoming line slopes up and interior angle is negative
-                    if abs(np.degrees(out_hangle)) < 26: # Angle between outgoing line and horizontal is small
-                        print(2, k, np.degrees(out_hangle))
+                    if abs(np.degrees(out_hangle)) < 27: # Angle between outgoing line and horizontal is small
                         AnnotatePointBelow(coord, color=color, ha='left',
                                            weight=weight, fontsize=fontsize,
-                                           offset=offset, digits=digits)
+                                           offset=offset, decimal_digits=decimal_digits)
                     else:
-                        AnnotatePointRight(coord, color=color,
+                        AnnotatePointRight(coord, color=color, va='top',
                                            weight=weight, fontsize=fontsize,
-                                           offset=offset, digits=digits)
+                                           offset=offset, decimal_digits=decimal_digits)
                 
                 elif (d[k-1][1] >= d[k][1]) & (int_angle >= 0): # Incoming line slopes down and interior angle is positive
-                    if abs(np.degrees(out_hangle)) < 26: # Angle between outgoing line and horizontal is small
-                        print(3, k, np.degrees(out_hangle))
+                    if abs(np.degrees(out_hangle)) < 27: # Angle between outgoing line and horizontal is small
                         AnnotatePointAbove(coord, color=color, ha='left',
                                            weight=weight, fontsize=fontsize,
-                                           offset=offset, digits=digits)
+                                           offset=offset, decimal_digits=decimal_digits)
                     else:
-                        AnnotatePointRight(coord, color=color,
+                         AnnotatePointRight(coord, color=color, va='bottom',
                                            weight=weight, fontsize=fontsize,
-                                           offset=offset, digits=digits)
+                                           offset=offset, decimal_digits=decimal_digits)
                 
                 else:
-                    if abs(np.degrees(out_hangle)) < 26: # Angle between outgoing line and horizontal is small
-                        print(3, k, np.degrees(out_hangle))
-                        AnnotatePointBelow(coord, color=color, ha='left',
+                    if abs(np.degrees(in_hangle)) < 27: # Angle between outgoing line and horizontal is small
+                        AnnotatePointBelow(coord, color=color, ha='right',
                                            weight=weight, fontsize=fontsize,
-                                           offset=offset, digits=digits)
+                                           offset=offset, decimal_digits=decimal_digits)
                     else:
-                        AnnotatePointLeft(coord, color=color,
+                        AnnotatePointLeft(coord, color=color, va='top',
                                            weight=weight, fontsize=fontsize,
-                                           offset=offset, digits=digits)
+                                           offset=offset, decimal_digits=decimal_digits)
 
 
 def DollarThousandsFormat(value):

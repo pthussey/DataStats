@@ -186,45 +186,6 @@ def NormalProbabilityValues(a):
     return sorted_norm, sorted_data
 
 
-def MultipleBarValues(*args):
-    """Generates a common set of x values and heights for multiple bars to be used in a matplotlib bar plot.
-
-    Arguments:
-        Multiple data sets in any array-like format
-
-    Returns:
-        bar_xvalues {array} -- Values to be used for x in the bar plot.
-        A range of values from minimum to maximum taken from all values in all the data sets.
-
-        results_list {a list of Series} -- The Series in the list are the value counts of the original data sets,
-        reindexed to match up with the bar_xvalues. bar_xvalues that do not exist in the data set are NaN.
-    """
-    # Initiate data set list
-    series_list = []
-
-    # Change data sets to Series format if needed and append to list
-    for x in args:
-        if isinstance(x, pd.Series) == False:
-            x = pd.Series(x)
-        series_list.append(x)
-
-    # Find the minimum and maximum values from all values in all data sets
-    series_total = pd.concat(series_list)
-    total_min = series_total.min()
-    total_max = series_total.max()
-
-    # Create the x values
-    bar_xvalues = np.arange(total_min,total_max+1)
-
-    # Initiate the results list and append the value count reindexed Series
-    results_list = []
-    for x in series_list:
-        x_reidx = x.value_counts().reindex(bar_xvalues)
-        results_list.append(x_reidx)
-
-    return bar_xvalues, results_list
-
-
 def PercentileRank(values, x):
     """Computes percentile rank for a certain value (x) from among a set of values.
     """
@@ -253,7 +214,7 @@ def EvalCdf(values, x):
 
 
 def CohenEffectSize(group1, group2):
-    """Computes Cohen's effect size for two groups.
+    """Computes Cohen's effect size for two groups within a single variable or across multiple variables.
 
     Arguments:
         group1 -- Series or DataFrame
@@ -273,9 +234,12 @@ def CohenEffectSize(group1, group2):
     return d
 
 
-def RvPmfDiffs(rv1,rv2):
+def RvPmfDiffs(group1, group2):
     """Computes a shared range of values and the percentage point differences 
-    between the pmfs of two scipy.stats discrete_rvs.
+    between the data for two different groups of a single discrete numerical variable. 
+    The resulting differences can then be plotted to show how the distributions of the two groups compare. 
+    For example, the data could be lists of ages for males and females, 
+    and the results of this function can be used in a plot to show the difference between them.
 
     Arguments:
         rv1, rv2 -- two discrete_rvs
@@ -284,10 +248,17 @@ def RvPmfDiffs(rv1,rv2):
         shared_xk {list} -- A list of values from the minimum to maximum 
         among all values from both input rvs
 
-        diffs {list} -- A list of the percentage point differences at each value in shared_xk for the rvs
+        diffs {list} -- A list of the percentage point differences at each value in shared_xk for the rvs (group1 - group2)
     """
+    # Create rvs for each group
+    val1, cnt1 = np.unique(group1, return_counts=True)
+    group1_rv = stats.rv_discrete(values=(val1,cnt1/sum(cnt1)))
+
+    val2, cnt2 = np.unique(group2, return_counts=True)
+    group2_rv = stats.rv_discrete(values=(val2,cnt2/sum(cnt2)))
+
     # Compute the the shared_xk values
-    total = np.concatenate((rv1.xk, rv2.xk))
+    total = np.concatenate((group1_rv.xk, group2_rv.xk))
     xk_min = total.min()
     xk_max = total.max()
     shared_xk = list(range(xk_min, xk_max+1))
@@ -296,97 +267,82 @@ def RvPmfDiffs(rv1,rv2):
     diffs = []
     
     for x in shared_xk:
-        p1 = rv1.pmf(x)
-        p2 = rv2.pmf(x)
+        p1 = group1_rv.pmf(x)
+        p2 = group2_rv.pmf(x)
         diff = (p1-p2)*100
         diffs.append(diff)
     
     return shared_xk, diffs
 
 
-def BiasRv(rv):
-    """Computes a biased version of a scipy.stats discrete_rv.
-    Replicates the situation in which a survey is asking respondents
-    to report the size of a group they belong to.
-    """
-    new_probs = []
-    for x in rv.xk:
-        prob = rv.pmf(x)*x
-        new_probs.append(prob)
-    new_pk = np.array(new_probs)/sum(new_probs)
-    return stats.rv_discrete(values=(rv.xk, new_pk))
+def ListsToDataFrame(data, group_labels, group_col_name=None, values_col_name=None):
+    """Takes data in the form of a list of lists, 
+    along with a list of data group labels of the same length, 
+    and produces a long-form DataFrame with two columns: 
+    one for the group labels and one for the corresponding values.
 
-
-def UnbiasRv(rv):
-    """Computes an unbiased version of a scipy.stats discrete_rv.
-    To be used in situations where a survey is asking respondents
-    to report the size of a group they are a part of.
-    """
-    new_probs = []
-    for x in rv.xk:
-        prob = rv.pmf(x)*1/x
-        new_probs.append(prob)
-    new_pk = np.array(new_probs)/sum(new_probs)
-    return stats.rv_discrete(values=(rv.xk, new_pk))
-
-
-def SampleRows(df, nrows, replace=False):
-    """Generates a random sample of rows from a dataframe. 
-    Use replace = True and nrows = len(df) to do a resampling of the dataframe. 
-    This is used to estimate sampling error and build CIs by computation.
-
-    Arguments:
-        df {dataframe} -- The input dataframe
-        nrows {integer} -- The number of rows to sample
-
-    Keyword Arguments:
-        replace {bool} -- [Select whether or not to use replacement in sampling] (default: {False})
+    Args:
+        data (list): A list of lists holding the data
+        group_labels (list): A list of the group labels for each list provided in 'data
+        group_col_name (string, optional): 
+        A name to give to the group column in the DataFrame. Defaults to None. 
+        If not provided uses the pandas melt default 'variable'.
+        values_col_name (_type_, optional): 
+        A name to give to the values column in the DataFrame. Defaults to None. 
+        If not provided uses the pandas melt default 'value'.
 
     Returns:
-        sample {dataframe} -- The sample dataframe
+        data_df: The resulting DataFrame
     """
-    indices = np.random.choice(df.index, nrows, replace=replace)
-    sample = df.loc[indices]
-    return sample
+    
+    if len(data) != len(group_labels):
+        raise Exception ("The number of group_labels must equal the number of data groups.")
+    
+    # Build the DataFrame from the provided data and group labels sequences
+    data_df = (pd.DataFrame(data=data, index=group_labels).T
+                                                          .melt()
+                                                          .dropna())
+    
+    # Rename the group column if provided, otherwise use pandas melt default 'variable'
+    if group_col_name is not None:
+        data_df.rename(columns={'variable':group_col_name}, inplace=True)
+    
+    # Rename the values column if provided, otherwise use pandas melt default 'value'
+    if values_col_name is not None:
+        data_df.rename(columns={'value':values_col_name}, inplace=True)
+    
+    return data_df
 
 
-def PercentileRow(array, p):
-    """Selects the row from a sorted array that maps to percentile p.
+def DataFrameToLists(data, group_col_name, values_col_name):
+    """Does the opposite of the 'ListsToDataFrame' function. 
+    Takes a DataFrame, and names of the columns containing the groups and values, 
+    and produces two lists: one containing lists of the data for each group, 
+    and the other containing the names of each group.
 
-    p: float 0--100
+    Args:
+        data (pandas DataFrame): The DataFrame that holds the data
+        group_col_name (string): The name of the column that holds the group labels
+        values_col_name (string): The name of the column that holds the corresponding values
 
-    returns: NumPy array (one row)
+    Returns:
+        group_labels_list: A list of the group names
+        group_values_list: A list of list containing the values for each group
     """
-    rows, _ = array.shape
-    index = int(rows * p / 100)
-    return array[index,]
-
-
-def PercentileRows(ys_seq, percents = [2.5, 97.5]):
-    """Given a collection of lines, selects percentiles along vertical axis. 
-    This can be used after building a list of sequences using resampling, 
-    and then the returned rows can be plotted (fill between) to produce a CI.
-
-    For example, if ys_seq contains simulation results like ys as a
-    function of time, and percents contains ([2.5, 97.5]), the result would
-    be a 95% CI for the simulation results.
-
-    ys_seq: sequence of lines (y values)
-    percents: list of percentiles (0-100) to select, defaults to [2.5, 97.5] for a 95% CI
-
-    returns: list of NumPy arrays, one for each percentile
-    """
-    nrows = len(ys_seq)
-    ncols = len(ys_seq[0])
-    array = np.zeros((nrows, ncols))
-
-    for i, ys in enumerate(ys_seq):
-        array[i,] = ys
-
-    array = np.sort(array, axis=0)
-
-    percentile_rows = [PercentileRow(array, p) for p in percents]
-    return percentile_rows
+    
+    # Make a dictionary that holds the 'values_col_name' data grouped by 'group_col_name' variable
+    groups = dict(list(data.groupby(group_col_name)[values_col_name]))
+    
+    # Instantiate two lists to hold the group labels and the lists of values for each group
+    group_labels_list = []
+    group_values_list = []
+    
+    # Build the lists of labels and corresponding values
+    for label,data in groups.items():
+        group_labels_list.append(label)
+        group_values_list.append(data.values)
+    
+    return group_labels_list, group_values_list
 
 
 def SummarizeEstimates(estimates, conf_int=0.95):
@@ -426,6 +382,52 @@ def PValueFromEstimates(estimates, test_statistic, tail='right'):
         raise Exception('The value of \'tail\' can only be either \'left\' or \'right\'')
     
     return pvalue
+
+
+def SampleRows(df, nrows, replace=False):
+    """Generates a random sample of rows from a dataframe. 
+    Use replace = True and nrows = len(df) to do a resampling of the dataframe. 
+    This is used to estimate sampling error and build CIs by computation.
+
+    Arguments:
+        df {dataframe} -- The input dataframe
+        nrows {integer} -- The number of rows to sample
+
+    Keyword Arguments:
+        replace {bool} -- [Select whether or not to use replacement in sampling] (default: {False})
+
+    Returns:
+        sample {dataframe} -- The sample dataframe
+    """
+    indices = np.random.choice(df.index, nrows, replace=replace)
+    sample = df.loc[indices]
+    return sample
+
+
+def BiasRv(rv):
+    """Computes a biased version of a scipy.stats discrete_rv.
+    Replicates the situation in which a survey is asking respondents
+    to report the size of a group they belong to.
+    """
+    new_probs = []
+    for x in rv.xk:
+        prob = rv.pmf(x)*x
+        new_probs.append(prob)
+    new_pk = np.array(new_probs)/sum(new_probs)
+    return stats.rv_discrete(values=(rv.xk, new_pk))
+
+
+def UnbiasRv(rv):
+    """Computes an unbiased version of a scipy.stats discrete_rv.
+    To be used in situations where a survey is asking respondents
+    to report the size of a group they are a part of.
+    """
+    new_probs = []
+    for x in rv.xk:
+        prob = rv.pmf(x)*1/x
+        new_probs.append(prob)
+    new_pk = np.array(new_probs)/sum(new_probs)
+    return stats.rv_discrete(values=(rv.xk, new_pk))
 
 
 def Jitter(values, jitter=0.5):
