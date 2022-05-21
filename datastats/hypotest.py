@@ -1086,8 +1086,12 @@ class HTOnewayAnova(HypothesisTest):
 
 
 def ChiSquareContribution(obs, exp):
-    """Calculates the Chi square contribution for each element in a pair of observed and expected arrays. 
-    If using scipy stats.chi2_contingency, can use the expected frequency array returned by that function. 
+    """Calculates the Chi square contribution for each element in contingency table (observed array). 
+    Can use scipy stats.chi2_contingency to obtain an expected arrary from a contingency table. 
+    The shape of the observed and expected arrays must be the same. 
+    If a DataFrame is used for the contingency table (observed array), 
+    the index and column names are maintained and a DataFrame is returned, 
+    otherwise an array is returned.
 
     Args:
         obs (array-like): The observed frequency array
@@ -1099,7 +1103,19 @@ def ChiSquareContribution(obs, exp):
     obs_array = np.array(obs)
     exp_array = np.array(exp)
     
-    return (obs_array - exp_array)**2/exp_array
+    if obs_array.shape != exp_array.shape:
+        raise Exception ("The shape of the observed and expected arrays must be the same.")
+    
+    result_array = (obs_array - exp_array)**2/exp_array
+    
+    if isinstance(obs, pd.DataFrame):
+        ix = obs.index
+        cols = obs.columns
+        
+        return pd.DataFrame(data=result_array, index=ix, columns=cols)
+    
+    else:
+        return result_array
 
 
 def AnovaPostHoc(data, labels=None, alpha=0.05):
