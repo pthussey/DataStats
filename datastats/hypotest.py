@@ -18,6 +18,8 @@ from collections import Counter
 from itertools import combinations
 from math import factorial
 
+from functools import reduce
+
 from .singlevar import DiscreteRv
 
 
@@ -726,8 +728,7 @@ class HTChiSquare(HypothesisTest):
     Uses resampling of the expected sequence to simulate the null hypothesis 
     and build the null hypothesis chi square statistic sampling distribution. 
     Accepts data in the form of a list or tuple of two sequences (observed, expected).
-    The passed sequences must be the same length, be integer counts of a categorical variable 
-    and the sum of the sequence values must be the same. 
+    The passed sequences must be the same length and the sum of the sequence values must be the same. 
     If the sum of the sequence values is different, first normalize the expected values 
     and then create a new expected values sequence by multiplying by the total number of observed values. 
     adjust_expected = expected/sum(expected)*sum(observed)
@@ -1083,6 +1084,31 @@ class HTOnewayAnova(HypothesisTest):
                 pvalue_count += 1
             
         return pvalue_count / num_runs
+
+
+def ExpectedFromObserved(obs):
+    """Adapted from scipy stats chi2_contingency:
+    https://github.com/scipy/scipy/blob/v1.8.1/scipy/stats/contingency.py#L132-L301  
+    Takes an observed frequency array (contingency table) and computes the expected frequency array.
+
+    Args:
+        obs (array-like): The observed frequency array
+  
+    Returns:
+        array: The expected frequency array
+    """
+    obs_array = np.asarray(obs, dtype=np.float64)
+    
+    margsums = []
+    ranged = list(range(obs_array.ndim))
+    for k in ranged:
+        marg = np.apply_over_axes(np.sum, obs_array, [j for j in ranged if j != k])
+        margsums.append(marg)
+
+    d = obs_array.ndim
+    expected = reduce(np.multiply, margsums) / obs_array.sum() ** (d - 1)
+    
+    return expected
 
 
 def ChiSquareContribution(obs, exp):
