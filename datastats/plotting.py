@@ -19,11 +19,11 @@ from .multivar import ResampleInterSlope
 
 
 # Sets the default rc parameters for plotting
-def SetParams(font='Malgun Gothic', basesize=12, basecolor='0.4', style='seaborn-whitegrid'):
+def SetParams(font='DejaVu Sans Mono', basesize=12, basecolor='0.4', style='seaborn-whitegrid'):
     """Sets some matplotlib rcParams and a style.
 
     Args:
-        font (str, optional): Choose the font. Defaults to 'Malgun Gothic'.
+        font (str, optional): Choose the font. Defaults to 'DejaVu Sans Mono'. Use 'Malgun Gothic' for Korean.
         basesize (int, optional): Sets a base font size. Defaults to 12.
         basecolor (str, optional): Sets a base color. Defaults to '0.4'.
         style (str, optional): Sets the style. Defaults to seaborn-whitegrid. Pass None for no style.

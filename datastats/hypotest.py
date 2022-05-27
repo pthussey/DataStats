@@ -1113,7 +1113,8 @@ def ExpectedFromObserved(obs):
 
 def ChiSquareContribution(obs, exp):
     """Calculates the Chi square contribution for each element in contingency table (observed array). 
-    Can use scipy stats.chi2_contingency to obtain an expected arrary from a contingency table. 
+    Can use the ExpectedFromObserved function in this module 
+    to obtain an expected array from a contingency table (observed array). 
     The shape of the observed and expected arrays must be the same. 
     If a DataFrame is used for the contingency table (observed array), 
     the index and column names are maintained and a DataFrame is returned, 
