@@ -1201,7 +1201,7 @@ def AnovaPostHoc(data, labels=None, alpha=0.05):
             test = HTDiffMeansH0((pair[0][1], pair[1][1]))
             pvalue = test.PValue()
             significant = 'Y' if pvalue < corrected_alpha else 'N'
-            results.append(((pair[0][0], pair[1][0]), '{:.3f}'.format(pvalue), significant))
+            results.append(((pair[0][0], pair[1][0]), '{:.4g}'.format(pvalue), significant))
         
     # Compute the results in the case that labels have not been provided
     else:
@@ -1212,7 +1212,7 @@ def AnovaPostHoc(data, labels=None, alpha=0.05):
             test = HTDiffMeansH0((pair[0][1], pair[1][1]))
             pvalue = test.PValue()
             significant = 'Y' if pvalue < corrected_alpha else 'N'
-            results.append(((pair[0][0], pair[1][0]), '{:.3f}'.format(pvalue), significant))
+            results.append(((pair[0][0], pair[1][0]), '{:.4g}'.format(pvalue), significant))
     
     return results, corrected_alpha
 
