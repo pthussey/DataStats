@@ -37,4 +37,4 @@ Version History
   - Removed PairwiseTukeyHsd function since it's not really needed
   - Added NormProbPlot, AllNumVarDensityPlot, AllCatVarCountPlot, and TwoCatProportionPlot functions to plotting module
   - Changed function name from AnnotateLine to AnnotateLineYs in plotting module and made some fixes to the function
-  - Created usage demonstration Jupyter notebookes for each module.
+  - Added usage demonstration Jupyter notebookes for each module.
