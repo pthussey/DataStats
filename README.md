@@ -16,8 +16,8 @@ I started creating the functions and classes in this package while studying Alan
 
 See the provided usage demonstration Jupyter notebooks for examples of how to use the functions and classes defined in each module. Note that the datastats package along with it dependencies (numpy, pandas, scipy, statsmodels, matplotlib, and seaborn) are required to run these demonstrations.
 
-Installation and Suggested Import Convention
---------------------------------------------
+Installation and Import
+-----------------------
 
 The datastats package can be installed using the following command:
 pip install git+https://github.com/pthussey/DataStats
