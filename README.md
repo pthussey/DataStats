@@ -14,13 +14,21 @@ The hypotest module is particularly unique as it has classes for performing vari
 
 I started creating the functions and classes in this package while studying Alan Downey's ThinkStats book, so much of functionality in it is inspired by, and based on, code from this book. I chose to build my own functions and classes rather than just use those supplied in the book because going through this process has proven to be a great way to learn the material more deeply. Also it means I don't need to be dependent on using the code the book supplies, and I can continue building new functionality as I need it.
 
-See the provided usage demonstration Jupyter notebooks for examples of how to use the functions and classes defined in each module. Note that the datastats package along with numpy, pandas, scipy.stats, statsmodels, matplotlib, and seaborn are required to run these demonstrations.
+See the provided usage demonstration Jupyter notebooks for examples of how to use the functions and classes defined in each module. Note that the datastats package along with it dependencies (numpy, pandas, scipy, statsmodels, matplotlib, and seaborn) are required to run these demonstrations.
 
-Installation
-------------
+Installation and Suggested Import Convention
+--------------------------------------------
 
-datastats can be installed using the following command:
+The datastats package can be installed using the following command:
 pip install git+https://github.com/pthussey/DataStats
+
+The following import convention is suggested:
+```python
+import datastats.singlevar as dssv
+import datastats.multivar as dsmv
+import datastats.hypotest as dsht
+import datastats.plotting as dsplt
+```
 
 Version History
 ---------------
