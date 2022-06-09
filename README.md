@@ -19,7 +19,7 @@ See the provided usage demonstration Jupyter notebooks for examples of how to us
 Installation and Import
 -----------------------
 
-The datastats package can be installed using the following command:
+The datastats package can be installed using the following command:  
 pip install git+https://github.com/pthussey/DataStats
 
 The following import convention is suggested:
