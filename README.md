@@ -46,3 +46,7 @@ Version History
   - Added NormProbPlot, AllNumVarDensityPlot, AllCatVarCountPlot, and TwoCatProportionPlot functions to plotting module
   - Changed function name from AnnotateLine to AnnotateLineYs in plotting module and made some fixes to the function
   - Added usage demonstration Jupyter notebookes for each module.
+ 
+ 1.2:
+  - Added a palette parameter and changed some other parameter names in SetParams function in plotting.py module
+  - Added a horizontal plotting option in TwoCatProportionPlot function in plotting.py module
