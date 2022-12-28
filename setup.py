@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name='datastats',
-    version='1.1',
+    version='1.2',
     author='Paul Hussey',
     author_email='pthussey77@gmail.com',
     description='A package of functions and classes for doing exploratory data analysis.',
