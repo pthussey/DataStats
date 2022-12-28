@@ -18,37 +18,43 @@ from .multivar import FitLine
 from .multivar import ResampleInterSlope
 
 
-# Sets the default rc parameters for plotting
-def SetParams(font='DejaVu Sans Mono', basesize=12, basecolor='0.4', style='seaborn-whitegrid'):
-    """Sets some matplotlib rcParams and a style.
+def SetParams(font='DejaVu Sans Mono', base_text_size=10, text_axis_color='0.4', 
+              palette='deep', style='whitegrid'):
+    """Sets some matplotlib rcParams, as well as a seaborn palette and style for all plots.
 
     Args:
         font (str, optional): Choose the font. Defaults to 'DejaVu Sans Mono'. Use 'Malgun Gothic' for Korean.
-        basesize (int, optional): Sets a base font size. Defaults to 12.
-        basecolor (str, optional): Sets a base color. Defaults to '0.4'.
-        style (str, optional): Sets the style. Defaults to seaborn-whitegrid. Pass None for no style.
+        base_text_size (int, optional): Sets a base font size. Defaults to 12.
+        text_axis_color (str, optional): Sets a base color. Defaults to '0.4'.
+        palette (str, optional): Sets the palette. Defaults to seaborn 'deep'. Pass to use default matplotlib and seaborn palettes.
+        style (str, optional): Sets the style. Defaults to whitegrid. Pass None to use default matplotlib and seaborn styles.
     """
     if style == None:
         pass
     else:
-        plt.style.use(style)
+        sns.set_style(style)
+    
+    if palette == None:
+        pass
+    else:
+        plt.rcParams['axes.prop_cycle'] = plt.cycler(color=sns.color_palette('deep'))
     
     plt.rcParams["font.family"] = font
-    plt.rcParams["font.size"] = basesize
-    plt.rcParams["xtick.labelsize"] = basesize
-    plt.rcParams["ytick.labelsize"] = basesize
-    plt.rcParams["legend.fontsize"] = basesize
-    plt.rcParams["axes.titlesize"] = basesize+2
+    plt.rcParams["font.size"] = base_text_size
+    plt.rcParams["xtick.labelsize"] = base_text_size
+    plt.rcParams["ytick.labelsize"] = base_text_size
+    plt.rcParams["legend.fontsize"] = base_text_size
+    plt.rcParams["axes.titlesize"] = base_text_size+2
     plt.rcParams["axes.titleweight"] = 'bold'
-    plt.rcParams["axes.labelsize"] = basesize+1
-    plt.rcParams["text.color"] = basecolor
-    plt.rcParams["axes.labelcolor"] = basecolor
-    plt.rcParams["axes.edgecolor"] = basecolor
-    plt.rcParams["xtick.color"] = basecolor
-    plt.rcParams["ytick.color"] = basecolor
-    plt.rcParams["ytick.left"] = True
-    plt.rcParams["xtick.bottom"] = True
-    plt.rcParams["axes.labelpad"] = basesize
+    plt.rcParams["axes.labelsize"] = base_text_size+1
+    plt.rcParams["text.color"] = text_axis_color
+    plt.rcParams["axes.labelcolor"] = text_axis_color
+    plt.rcParams["axes.edgecolor"] = text_axis_color
+    plt.rcParams["xtick.color"] = text_axis_color
+    plt.rcParams["ytick.color"] = text_axis_color
+    plt.rcParams["ytick.left"]: True
+    plt.rcParams["xtick.bottom"]: True
+    plt.rcParams["axes.labelpad"] = base_text_size
     plt.rcParams['axes.unicode_minus'] = False if font == 'Malgun Gothic' else True
 
 
@@ -454,14 +460,15 @@ def AllCatVarCountPlot(variables, data):
     return fig,axes
 
 
-def TwoCatProportionPlot(x, hue, data):
+def TwoCatProportionPlot(var1, var2, data, orientation='vertical'):
     """Computes and plots the proportions (percentages) of one categorical variable within another. 
-    An example would be the proportion of males and females within different population groups.
+    An example would be gender (var2) within different population groups (var1).
 
     Args:
-        x (str): The x variable for the bar plot.
-        hue (str): The variable that will split the bars into different colors within each x variable group.
-        data (pandas DataFrame): The DataFrame that contains the x and hue variables.
+        var1 (str): The variable whose values will be on the x or y axis of the bar plot.
+        var2 (str): The variable that will split the bars into different colors within each var1 value.
+        data (pandas DataFrame): The DataFrame that contains the var1 and var2 variables.
+        orientation (str): Only accepted values are 'vertical' and 'horizontal'. Default is 'vertical'.
 
     Returns:
         fig: The figure for the plot
@@ -472,18 +479,29 @@ def TwoCatProportionPlot(x, hue, data):
     fig.set_size_inches(8,6)
     
     # Build DataFrame for data to be plotted
-    plot_df = (data.groupby(x)[hue]
+    plot_df = (data.groupby(var1)[var2]
                .value_counts(normalize=True)
                .mul(100)
                .rename('percentage')
                .reset_index()
-               .rename(columns={'level_1':hue}))
+               .rename(columns={'level_1':var2}))
     
-    # Plot the data
-    sns.barplot(x=x, y='percentage', hue=hue, data=plot_df, ax=ax)
+    # Plot the data vertically
+    if orientation == 'vertical':
+        sns.barplot(x=var1, y='percentage', hue=var2, data=plot_df, ax=ax)
+        
+        # Set y limits
+        ax.set_ylim(0,100)
+        
+    # Plot the data horizontally
+    elif orientation == 'horizontal':
+        sns.barplot(y=var1, x='percentage', hue=var2, data=plot_df, ax=ax)
+        
+        # Set y limits
+        ax.set_xlim(0,100)
     
-    # Set y limits
-    ax.set_ylim(0,100)
+    else:
+        raise ValueError ('The only accepted orientation values are \'vertical\' and \'horizontal\'')
     
     return fig,ax
 
