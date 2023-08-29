@@ -22,6 +22,8 @@ Installation and Import
 The datastats package can be installed using the following command:  
 pip install git+https://github.com/pthussey/DataStats
 
+\* Note that you must have git installed on your machine for the above package installation to work.
+
 The following import convention is suggested:
 ```python
 import datastats.singlevar as dssv
