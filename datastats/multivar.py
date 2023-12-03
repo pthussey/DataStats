@@ -8,8 +8,6 @@ import pandas as pd
 
 import scipy.stats as stats
 import statsmodels.api as sm
-import statsmodels.formula.api as smf
-import patsy
 
 from collections import Counter
 
@@ -207,132 +205,246 @@ def CorrelationRandCI(x, y, alpha=0.05, method='pearson'):
     return r, p, low, high
 
 
-def VariableMiningOLS(df, y):
-    """Searches variables using ordinary least squares regression to find ones that predict the target dependent variable 'y'.
+def VariableMiningOLS(df, response_var, method='pinv'):
+    """Performs single variable ordinary least squares regression 
+    on each variable in a dataset, with respect to a designated response variable. 
+    Potentially relevant variables can then be identified 
+    from the returned list of r-squared values for each regression. 
+    Variables in the dataset must first be cleaned to ensure no missing values, 
+    and if categorical variables will be included among the explanatory variables 
+    then those must first be converted to dummy indicator variables.
 
     Args:
         df (DataFrame): DataFrame that holds all the variables
-        y (string): Column name of dependent variable y
+        response_var (string): Column name of response (dependent) variable
+        method (string): Solver method to use, see the statsmodels OLS fit method parameters for options
 
     Returns:
-        variables (list): A list of tuples each containing r-squared value and variable name
+        variables (list): A sorted list of tuples each containing r-squared value and variable name
     """
+    # Initiate the variables results list
+    variables = []
     
-    variables = []
     for name in df.columns:
         try:
-            if df[name].var() < 1e-7:
+            # Exclude the response variable from the results list
+            if name == response_var:
                 continue
-
-            formula = '{} ~ '.format(y) + name
             
-            # The following seems to be required in some environments
-            # formula = formula.encode('ascii')
-
-            model = smf.ols(formula, data=df)
-            if model.nobs < len(df)/2:
+            # Convert variable to a float
+            try:
+                df = df.astype({name:float})
+            
+            except ValueError as error:
+                print(f'Exception raised: {error}\n' +
+                      'Variable will be excluded from mining results.\n' +
+                      'If variable is categorical, convert to dummies to include it.')
+                continue
+                
+            # Exclude variables that have extremely low variance
+            if df[name].var() < 1e-7:
                 continue
 
-            results = model.fit()
-        except (ValueError, TypeError):
+            x = df[name]
+            y = df[response_var]
+            
+            x = sm.add_constant(x)
+            
+            model = sm.OLS(y, x).fit(method=method)
+        
+        except (TypeError, ValueError):
+            print('Exception encountered when running regression on \"{}\" variable.'.format(name))
             continue
 
-        variables.append((results.rsquared, name))
+        variables.append((model.rsquared, name))
 
-    return variables
+    return sorted(variables, reverse=True)
 
 
-def VariableMiningLogit(df, y):
-    """Searches variables using logistic regression to find ones that predict the target dependent variable 'y'.
+def VariableMiningLogit(df, response_var, method='newton', maxiter=35):
+    """Performs single variable logistic regression on each variable in a dataset, 
+    with respect to a designated response variable. 
+    Potentially relevant variables can then be identified 
+    from the returned list of r-squared values for each regression. 
+    Variables in the dataset must first be cleaned to ensure no missing values, 
+    and if categorical variables will be included among the explanatory variables 
+    then those must first be converted to dummy indicator variables.
 
     Args:
         df (DataFrame): DataFrame that holds all the variables.
-        y (string): Column name of dependent variable y. Must use integer values (ie. 1 for True).
+        y (string): Column name of dependent variable y. Must be a binary categorical variable expressed in integer values (ie. 1 for True).
+        method (string): Solver method to use. See the statsmodels Logit fit method parameters for options.
+        maxiter (int): The maximum number of iterations to perform in the fit method.
 
     Returns:
         variables (list): A list of tuples each containing r-squared value and variable name
     """
+   # Initiate the variables results list
     variables = []
+    
     for name in df.columns:
         try:
+            # Exclude the response variable from the results list
+            if name == response_var:
+                continue
+            
+            # Convert variable to a float
+            try:
+                df = df.astype({name:float})
+            
+            except ValueError as error:
+                print(f'Exception raised: {error}\n' +
+                      'Variable will be excluded from mining results.\n' +
+                      'If variable is categorical, convert to dummies to include it.')
+                continue
+                
+            # Exclude variables that have extremely low variance
             if df[name].var() < 1e-7:
                 continue
 
-            formula = '{} ~ '.format(y) + name
-            model = smf.logit(formula, data=df)
-            nobs = len(model.endog)
-            if nobs < len(df)/2:
-                continue
-
-            results = model.fit()
-        except:
+            x = df[name]
+            y = df[response_var]
+            
+            x = sm.add_constant(x)
+            
+            model = sm.Logit(y, x).fit(method=method, maxiter=maxiter)
+        
+        except (TypeError, ValueError):
+            print('Exception encountered when running regression on \"{}\" variable.'.format(name))
             continue
+            
+        # Adds a 'convergence warning' message to mining results
+        # to indicate which variables produced this warning
+        if not model.mle_retvals['converged']:
+            variables.append((model.prsquared, name, 'Convergence warning'))
+        else: 
+            variables.append((model.prsquared, name))
 
-        variables.append((results.prsquared, name))
-
-    return variables
+    return sorted(variables, reverse=True)
 
 
-def VariableMiningPoisson(df, y):
-    """Searches variables using Poisson regression to find ones that predict the target dependent variable 'y'.
+def VariableMiningPoisson(df, response_var, method='newton', maxiter=35):
+    """Performs single variable Poisson regression on each variable in a dataset, 
+    with respect to a designated response variable. 
+    Potentially relevant variables can then be identified 
+    from the returned list of r-squared values for each regression. 
+    Variables in the dataset must first be cleaned to ensure no missing values, 
+    and if categorical variables will be included among the explanatory variables 
+    then those must first be converted to dummy indicator variables.
 
     Args:
         df (DataFrame): DataFrame that holds all the variables.
-        y (string): Column name of dependent variable y.
+        y (string): Column name of dependent variable y. Must be a 'count' variable.
+        method (string): Solver method to use. See the statsmodels Poisson fit method parameters for options.
+        maxiter (int): The maximum number of iterations to perform in the fit method.
 
     Returns:
         variables (list): A list of tuples each containing r-squared value and variable name
     """
+   # Initiate the variables results list
     variables = []
-    for name in df.columns:
+    
+    for name in df.columns:       
         try:
+            # Exclude the response variable from the results list
+            if name == response_var:
+                continue
+                
+            # Convert variable to a float
+            try:
+                df = df.astype({name:float})
+            
+            except ValueError as error:
+                print(f'Exception raised: {error}\n' +
+                      'Variable will be excluded from mining results.\n' +
+                      'If variable is categorical, convert to dummies to include it.')
+                continue
+                
+            # Exclude variables that have extremely low variance
             if df[name].var() < 1e-7:
                 continue
 
-            formula = '{} ~ '.format(y) + name
-            model = smf.poisson(formula, data=df)
-            nobs = len(model.endog)
-            if nobs < len(df)/2:
-                continue
-
-            results = model.fit()
-        except:
+            x = df[name]
+            y = df[response_var]
+            
+            x = sm.add_constant(x)
+            
+            model = sm.Poisson(y, x).fit(method=method, maxiter=maxiter)
+        
+        except (TypeError, ValueError):
+            print('Exception encountered when running regression on \"{}\" variable.'.format(name))
             continue
+            
+        # Adds a 'convergence warning' message to mining results
+        # to indicate which variables produced this warning
+        if not model.mle_retvals['converged']:
+            variables.append((model.prsquared, name, 'Convergence warning'))
+        else: 
+            variables.append((model.prsquared, name))
+            
+    return sorted(variables, reverse=True)
 
-        variables.append((results.prsquared, name))
 
-    return variables
-
-
-def VariableMiningMnlogit(df, y):
-    """Searches variables using multinomial logistic regression to find ones that predict the target dependent variable 'y'.
+def VariableMiningMNLogit(df, response_var, method='newton', maxiter=35):
+    """Performs single variable multinomial logistic regression on each variable in a dataset, 
+    with respect to a designated response variable. 
+    Potentially relevant variables can then be identified 
+    from the returned list of r-squared values for each regression. 
+    Variables in the dataset must first be cleaned to ensure no missing values, 
+    and if categorical variables will be included among the explanatory variables 
+    then those must first be converted to dummy indicator variables.
 
     Args:
         df (DataFrame): DataFrame that holds all the variables.
-        y (string): Column name of dependent variable y.
+        y (string): Column name of dependent variable y. Must be categorical variable that can take on at least two values.
+        method (string): Solver method to use. See the statsmodels MNLogit fit method parameters for options.
+        maxiter (int): The maximum number of iterations to perform in the fit method.
 
     Returns:
         variables (list): A list of tuples each containing r-squared value and variable name
     """
+   # Initiate the variables results list
     variables = []
+    
     for name in df.columns:
         try:
+            # Exclude the response variable from the results list
+            if name == response_var:
+                continue
+         
+            # Convert variable to a float
+            try:
+                df = df.astype({name:float})
+            
+            except ValueError as error:
+                print(f'Exception raised: {error}\n' +
+                      'Variable will be excluded from mining results.\n' +
+                      'If variable is categorical, convert to dummies to include it.')
+                continue
+                
+            # Exclude variables that have extremely low variance
             if df[name].var() < 1e-7:
                 continue
 
-            formula = '{} ~ '.format(y) + name
-            model = smf.mnlogit(formula, data=df)
-            nobs = len(model.endog)
-            if nobs < len(df)/2:
-                continue
-
-            results = model.fit()
-        except:
+            x = df[name]
+            y = df[response_var]
+            
+            x = sm.add_constant(x)
+            
+            model = sm.MNLogit(y, x).fit(method=method, maxiter=maxiter)
+        
+        except (TypeError, ValueError):
+            print('Exception encountered when running regression on \"{}\" variable.'.format(name))
             continue
+            
+        # Adds a 'convergence warning' message to mining results
+        # to indicate which variables produced this warning
+        if not model.mle_retvals['converged']:
+            variables.append((model.prsquared, name, 'Convergence warning'))
+        else: 
+            variables.append((model.prsquared, name))
 
-        variables.append((results.prsquared, name))
-
-    return variables
+    return sorted(variables, reverse=True)
 
 
 def SummarizeRegressionResults(results):
