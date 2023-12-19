@@ -447,26 +447,37 @@ def VariableMiningMNLogit(df, response_var, method='newton', maxiter=35):
     return sorted(variables, reverse=True)
 
 
-def SummarizeRegressionResults(results):
-    """Takes a statsmodels linear regression results object (model.fit()) and 
-    prints the most important parts of linear regression results.
-    Printed independent variable results are coefficent value and pvalue.
+def SummarizeOLSRegressionResults(results):
+    """Takes a statsmodels OLS regression results object 
+    and prints the most important parts of results summary. 
+    The printed results include the intercept (const) and its p-value, 
+    the coefficients and p-values for each variable, and the R2 value for the model. 
+    Additionally, std(ys) and std(res) are also included. 
+    std(ys) is the root mean squared error (RMSE) of the response variable values 
+    without using any explanatory variables. 
+    std(res) is the RMSE of the residuals from the model that uses the explanatory variables. 
+    A comparison of std(ys) and std(res) shows the reduction in RMSE, 
+    which is helpful for inferring the predictive power of the model.
 
     Args:
-        results (statsmodels.regression.linear_model.RegressionResultsWrapper): 
-        statsmodels regression results object
+        results : A statsmodels OLS regression results object (model.fit()).
     """
+
+    if type(results._results).__name__ == 'OLSResults':
+        pass
+ 
+    else:
+        raise Exception('Unsupported regression results object used. ' +
+                        'Only OLS regression results are supported.' +
+                        'For all other regression result types use the .summary() method.')
+
     for name, param in results.params.items():
         pvalue = results.pvalues[name]
-        print('%s   %0.3g   (%.3g)' % (name, param, pvalue))
-
-    try:
-        print('R^2 %.4g' % results.rsquared)
-        ys = results.model.endog
-        print('Std(ys) %.4g' % ys.std())
-        print('Std(res) %.4g' % results.resid.std())
-    except AttributeError:
-        print('R^2 %.4g' % results.prsquared)
+        print('%s   coef : %0.3g   p-value: (%.3g)' % (name, param, pvalue))
+        
+    print('R^2 %.4g' % results.rsquared)
+    print('Std(ys) %.4g' % results.model.endog.std())
+    print('Std(res) %.4g' % results.resid.std())
 
 
 def HazardValues(rv):
